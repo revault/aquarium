@@ -15,7 +15,7 @@ services:
 
   coordinatord:
     image: coordinatord
-    container_name: coordinator
+    container_name: coordinatord
     entrypoint: ["./entrypoint.sh"]
     expose:
       - 8383
@@ -25,9 +25,29 @@ services:
       - type: bind
         source: ./coordinator
         target: /home/.revault_coordinatord
-    container_name: coordinatord
     depends_on:
       - coordinator_db
     build:
       context: ./docker/coordinatord
       dockerfile: Dockerfile
+
+  bitcoind_stakeholder_1:
+    image: bitcoind
+    container_name: bitcoind_stakeholder_1
+    entrypoint: ["./entrypoint.sh"]
+    expose:
+      - 9001
+      - 10001
+    ports:
+      - 9001:9001
+      - 10001:10001
+    volumes:
+      - type: bind
+        source: ./stakeholder_1/bitcoin
+        target: /root/.bitcoin
+    build:
+      context: ./docker/bitcoind
+      dockerfile: Dockerfile
+      args:
+        BITCOIN_VERSION: "0.21.0"
+# check https://github.com/FreekPaans/bitcoin-multi-node-regtest
