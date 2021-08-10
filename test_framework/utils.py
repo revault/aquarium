@@ -21,7 +21,7 @@ from typing import Optional
 
 
 TIMEOUT = int(os.getenv("TIMEOUT", 60))
-TEST_DEBUG = os.getenv("TEST_DEBUG", "0") == "1"
+DEBUG_GUI = os.getenv("DEBUG_GUI", "0") == "1"
 EXECUTOR_WORKERS = int(os.getenv("EXECUTOR_WORKERS", 20))
 POSTGRES_USER = os.getenv("POSTGRES_USER", "")
 POSTGRES_PASS = os.getenv("POSTGRES_PASS", "")
@@ -75,6 +75,9 @@ class User(Participant):
 
     def get_xpub(self):
         return self.hd.get_master_xpub()
+
+    def get_xpriv(self):
+        return self.hd.get_master_xpriv()
 
     def sign_revocation_psbt(self, psbt_str, deriv_index):
         """Attach an ACP signature to the PSBT with the key at {deriv_index}"""

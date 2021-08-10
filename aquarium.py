@@ -101,6 +101,11 @@ def build_all_binaries():
             "https://github.com/revault/revault-gui",
         )
 
+        logging.info(f"Building revault-gui's dummysigner")
+        subprocess.check_call(
+            ["cargo", "build", "--manifest-path", f"{REVAULT_GUI_SRC_DIR}/contrib/tools/dummysigner/Cargo.toml"]
+        )
+
 
 def bitcoind():
     bitcoind = BitcoinD(bitcoin_dir=bitcoind_dir())
@@ -202,6 +207,15 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             revault_gui = os.path.join(
                 REVAULT_GUI_SRC_DIR, "target", "debug", "revault-gui"
             )
+            dummysigner = os.path.join(
+                REVAULT_GUI_SRC_DIR,
+                "contrib",
+                "tools",
+                "dummysigner",
+                "target",
+                "debug",
+                "dummysigner",
+            )
 
         revault_cli = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revault-cli")
         aliases_file = os.path.join(BASE_DIR, "aliases.sh")
@@ -216,14 +230,20 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
                 f.write(f'alias stk{i}d="{revaultd_path} --conf {stk.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
-                        f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'"
+                        f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'\n"
+                    )
+                    f.write(
+                        f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.get_xpriv()}'\n"
                     )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
                 f.write(f'alias man{i}d="{revaultd_path} --conf {man.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
-                        f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'"
+                        f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'\n"
+                    )
+                    f.write(
+                        f"alias man{i}hw='{dummysigner} {man.man_keychain.get_xpriv()}'\n"
                     )
             for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
@@ -234,7 +254,13 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
                 )
                 if WITH_GUI:
                     f.write(
-                        f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'"
+                        f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'\n"
+                    )
+                    f.write(
+                        f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.get_xpriv()}'\n"
+                    )
+                    f.write(
+                        f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.get_xpriv()}'\n"
                     )
 
         with open(aliases_file, "r") as f:
