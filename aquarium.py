@@ -19,6 +19,7 @@ from test_framework.utils import (
     POSTGRES_IS_SETUP,
     EXECUTOR_WORKERS,
     LOG_LEVEL,
+    DEBUG_GUI,
 )
 
 
@@ -27,10 +28,13 @@ SRC_DIR = os.getenv("SRC_DIR", os.path.abspath("src"))
 COORDINATORD_SRC_DIR = os.path.join(SRC_DIR, "coordinatord")
 COSIGNERD_SRC_DIR = os.path.join(SRC_DIR, "cosignerd")
 REVAULTD_SRC_DIR = os.path.join(SRC_DIR, "revaultd")
+REVAULT_GUI_SRC_DIR = os.path.join(SRC_DIR, "revault-gui")
 SHELL = os.getenv("SHELL", "bash")
 COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "master")
 COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "master")
 REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "master")
+REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "master")
+WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 
 
 # FIXME: use tmp
@@ -85,6 +89,17 @@ def build_all_binaries():
 
     logging.info(f"Building cosignerd at '{REVAULTD_VERSION}' in '{REVAULTD_SRC_DIR}'")
     build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION, "https://github.com/revault/revaultd")
+
+    if WITH_GUI:
+        logging.info(
+            f"Building revault-gui at '{REVAULT_GUI_VERSION}' in '{REVAULT_GUI_SRC_DIR}',"
+            " this may take some time"
+        )
+        build_src(
+            REVAULT_GUI_SRC_DIR,
+            REVAULT_GUI_VERSION,
+            "https://github.com/revault/revault-gui",
+        )
 
 
 def bitcoind():
@@ -173,6 +188,21 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
         )
         rn.deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh)
 
+        # We use a hack to avoid having to modify the test_framework to include the GUI.
+        if WITH_GUI:
+            for p in rn.participants():
+                p.gui_conf_file = os.path.join(
+                    p.datadir_with_network, "gui_config.toml"
+                )
+                with open(p.gui_conf_file, "w") as f:
+                    f.write(f"revaultd_config_path = '{p.conf_file}'\n")
+                    f.write(f"revaultd_path = '{revaultd_path}'\n")
+                    f.write(f"log_level = '{LOG_LEVEL}'\n")
+                    f.write(f"debug = {'true' if DEBUG_GUI else 'false'}")
+            revault_gui = os.path.join(
+                REVAULT_GUI_SRC_DIR, "target", "debug", "revault-gui"
+            )
+
         revault_cli = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revault-cli")
         aliases_file = os.path.join(BASE_DIR, "aliases.sh")
         with open(aliases_file, "w") as f:
@@ -184,9 +214,17 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             for i, stk in enumerate(rn.stk_wallets):
                 f.write(f'alias stk{i}cli="{revault_cli} --conf {stk.conf_file}"\n')
                 f.write(f'alias stk{i}d="{revaultd_path} --conf {stk.conf_file}"\n')
+                if WITH_GUI:
+                    f.write(
+                        f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'"
+                    )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
                 f.write(f'alias man{i}d="{revaultd_path} --conf {man.conf_file}"\n')
+                if WITH_GUI:
+                    f.write(
+                        f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'"
+                    )
             for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
                     f'alias stkman{i}cli="{revault_cli} --conf {stkman.conf_file}"\n'
@@ -194,6 +232,10 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
                 f.write(
                     f'alias stkman{i}d="{revaultd_path} --conf {stkman.conf_file}"\n'
                 )
+                if WITH_GUI:
+                    f.write(
+                        f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'"
+                    )
 
         with open(aliases_file, "r") as f:
             available_aliases = "".join(f.readlines()[1:])
