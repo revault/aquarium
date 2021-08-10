@@ -1,0 +1,8 @@
+tags
+target/
+__pycache__
+venv/
+pytest.log
+TODO
+./demo/
+./src/
