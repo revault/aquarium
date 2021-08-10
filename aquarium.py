@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+import argparse
+import logging
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import time
+import traceback
 
 from concurrent import futures
 from test_framework.bitcoind import BitcoinD
@@ -11,15 +20,6 @@ from test_framework.utils import (
     EXECUTOR_WORKERS,
     LOG_LEVEL,
 )
-
-import logging
-import os
-import shutil
-import socket
-import subprocess
-import sys
-import time
-import traceback
 
 
 BASE_DIR = os.getenv("BASE_DIR", os.path.abspath("demo"))
@@ -102,7 +102,7 @@ def bitcoind():
     return bitcoind
 
 
-def deploy(n_stks, n_mans, n_stkmans, csv):
+def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
     if not POSTGRES_IS_SETUP:
         logging.error("I need the Postgres environment variable to be set.")
         print("Example:")
@@ -121,9 +121,21 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
         )
         sys.exit(1)
 
+    if n_stks + n_stkmans < 1:
+        logging.error("Need at least 1 stakeholder")
+        sys.exit(1)
+    if n_mans + n_stkmans < 1:
+        logging.error("Need at least 1 manager")
+        sys.exit(1)
+    if mans_thresh is not None and (
+        mans_thresh > n_mans + n_stkmans or mans_thresh < 1
+    ):
+        logging.error("Invalid managers threshold")
+        sys.exit(1)
+
     if os.path.isdir(BASE_DIR):
-        logging.info("Base directory exists already")
-        resp = input(f"Remove non-empty '{BASE_DIR}' and start fresh? (y/n)")
+        logging.warning("Base directory exists already")
+        resp = input(f"Remove non-empty '{BASE_DIR}' and start fresh? (y/n) ")
         if resp.lower() == "y":
             shutil.rmtree(BASE_DIR)
         else:
@@ -140,8 +152,8 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
     try:
         logging.info(
             f"Deploying a Revault network with {n_stks} only-stakeholders,"
-            f" {n_mans} only-managers, {n_stkmans} both stakeholders and managers"
-            f" and a CSV of {csv}"
+            f" {n_mans} only-managers, {n_stkmans} both stakeholders and managers,"
+            f" a CSV of {csv} and a managers threshold of {mans_thresh or n_mans + n_stkmans}"
         )
         revaultd_path = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revaultd")
         coordinatord_path = os.path.join(
@@ -159,14 +171,16 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
             POSTGRES_PASS,
             POSTGRES_HOST,
         )
-        rn.deploy(n_stks, n_mans, n_stkmans, csv)
+        rn.deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh)
 
         revault_cli = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revault-cli")
         aliases_file = os.path.join(BASE_DIR, "aliases.sh")
         with open(aliases_file, "w") as f:
             f.write('PS1="(Revault demo) $PS1"\n')  # It's a hack it shouldn't be there
             f.write(f"alias bd=\"bitcoind -datadir='{bd.bitcoin_dir}'\"\n")
-            f.write(f"alias bcli=\"bitcoin-cli -datadir='{bd.bitcoin_dir}'\"\n")
+            f.write(
+                f"alias bcli=\"bitcoin-cli -datadir='{bd.bitcoin_dir}' -rpcwallet='{bd.rpc.wallet_name}'\"\n"
+            )
             for i, stk in enumerate(rn.stk_wallets):
                 f.write(f'alias stk{i}cli="{revault_cli} --conf {stk.conf_file}"\n')
                 f.write(f'alias stk{i}d="{revaultd_path} --conf {stk.conf_file}"\n')
@@ -183,6 +197,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
 
         with open(aliases_file, "r") as f:
             available_aliases = "".join(f.readlines()[1:])
+        print("\n\n=========================================================")
         print("Dropping you into a shell. Exit to end the session.")
         print(f"Available aliases: \n{available_aliases}\n")
         # In any case clean up all daemons before exiting
@@ -190,13 +205,13 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
             subprocess.call([SHELL, "--init-file", f"{aliases_file}", "-i"])
         except Exception as e:
             logging.error(f"Got error: '{str(e)}'")
-            traceback.format_exc()
+            logging.error(traceback.format_exc())
         finally:
             logging.info("Cleaning up Revault deployment")
             rn.cleanup()
     except Exception as e:
         logging.error(f"Got error: '{str(e)}'")
-        traceback.format_exc()
+        logging.error(traceback.format_exc())
     finally:
         logging.info("Cleaning up bitcoind")
         bd.cleanup()
@@ -220,18 +235,53 @@ def setup_logging():
     )
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    deploy_config = parser.add_argument_group("Deployment configuration")
+    deploy_config.add_argument(
+        "-stks",
+        "--stakeholders",
+        type=int,
+        help="The number of only-stakeholder",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-mans",
+        "--managers",
+        type=int,
+        help="The number of only-manager",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-stkmans",
+        "--stakeholder-managers",
+        type=int,
+        help="The number of both stakeholder-manager",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-csv",
+        "--timelock",
+        type=int,
+        help="The number of blocks during which an Unvault attempt can be canceled",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-mansthresh",
+        "--managers-threshold",
+        type=int,
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     setup_logging()
 
-    if len(sys.argv) < 2:
-        print("Not enough arguments")
-        sys.exit(1)
-
-    if sys.argv[1] == "deploy":
-        if len(sys.argv) < 6:
-            print("Need number of stakeholders, managers and stakeholder-managers")
-            sys.exit(1)
-        deploy(int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
-    else:
-        print("Unknown command")
-        sys.exit(1)
+    args = parse_args()
+    deploy(
+        args.stakeholders,
+        args.managers,
+        args.stakeholder_managers,
+        args.timelock,
+        args.managers_threshold,
+    )
