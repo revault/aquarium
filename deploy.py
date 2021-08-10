@@ -102,7 +102,7 @@ def bitcoind():
     return bitcoind
 
 
-def deploy(n_stks, n_mans, n_stkmans, csv):
+def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
     if not POSTGRES_IS_SETUP:
         logging.error("I need the Postgres environment variable to be set.")
         print("Example:")
@@ -119,6 +119,18 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
         print(
             f"    docker run --rm -d -p 5432:5432 --name postgres-coordinatord -e POSTGRES_PASSWORD={POSTGRES_PASS} -e POSTGRES_USER={POSTGRES_USER} -e POSTGRES_DB=coordinator_db postgres:alpine"
         )
+        sys.exit(1)
+
+    if n_stks + n_stkmans < 1:
+        logging.error("Need at least 1 stakeholder")
+        sys.exit(1)
+    if n_mans + n_stkmans < 1:
+        logging.error("Need at least 1 manager")
+        sys.exit(1)
+    if mans_thresh is not None and (
+        mans_thresh > n_mans + n_stkmans or mans_thresh < 1
+    ):
+        logging.error("Invalid managers threshold")
         sys.exit(1)
 
     if os.path.isdir(BASE_DIR):
@@ -140,8 +152,8 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
     try:
         logging.info(
             f"Deploying a Revault network with {n_stks} only-stakeholders,"
-            f" {n_mans} only-managers, {n_stkmans} both stakeholders and managers"
-            f" and a CSV of {csv}"
+            f" {n_mans} only-managers, {n_stkmans} both stakeholders and managers,"
+            f" a CSV of {csv} and a managers threshold of {mans_thresh or n_mans + n_stkmans}"
         )
         revaultd_path = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revaultd")
         coordinatord_path = os.path.join(
@@ -159,7 +171,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
             POSTGRES_PASS,
             POSTGRES_HOST,
         )
-        rn.deploy(n_stks, n_mans, n_stkmans, csv)
+        rn.deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh)
 
         revault_cli = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revault-cli")
         aliases_file = os.path.join(BASE_DIR, "aliases.sh")
@@ -185,6 +197,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
 
         with open(aliases_file, "r") as f:
             available_aliases = "".join(f.readlines()[1:])
+        print("\n\n=========================================================")
         print("Dropping you into a shell. Exit to end the session.")
         print(f"Available aliases: \n{available_aliases}\n")
         # In any case clean up all daemons before exiting
@@ -253,6 +266,11 @@ def parse_args():
         help="The number of blocks during which an Unvault attempt can be canceled",
         required=True,
     )
+    deploy_config.add_argument(
+        "-mansthresh",
+        "--managers-threshold",
+        type=int,
+    )
     return parser.parse_args()
 
 
@@ -260,4 +278,10 @@ if __name__ == "__main__":
     setup_logging()
 
     args = parse_args()
-    deploy(args.stakeholders, args.managers, args.stakeholder_managers, args.timelock)
+    deploy(
+        args.stakeholders,
+        args.managers,
+        args.stakeholder_managers,
+        args.timelock,
+        args.managers_threshold,
+    )
