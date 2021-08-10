@@ -309,6 +309,7 @@ class RevaultNetwork:
             os.makedirs(datadir, exist_ok=True)
 
             cosignerd = Cosignerd(
+                self.cosignerd_path,
                 datadir,
                 stkman_cosig_noiseprivs[i],
                 stkman_cosig_keychains[i].get_bitcoin_priv(),

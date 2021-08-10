@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+import argparse
+import logging
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import time
+import traceback
 
 from concurrent import futures
 from test_framework.bitcoind import BitcoinD
@@ -11,15 +20,6 @@ from test_framework.utils import (
     EXECUTOR_WORKERS,
     LOG_LEVEL,
 )
-
-import logging
-import os
-import shutil
-import socket
-import subprocess
-import sys
-import time
-import traceback
 
 
 BASE_DIR = os.getenv("BASE_DIR", os.path.abspath("demo"))
@@ -122,8 +122,8 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
         sys.exit(1)
 
     if os.path.isdir(BASE_DIR):
-        logging.info("Base directory exists already")
-        resp = input(f"Remove non-empty '{BASE_DIR}' and start fresh? (y/n)")
+        logging.warning("Base directory exists already")
+        resp = input(f"Remove non-empty '{BASE_DIR}' and start fresh? (y/n) ")
         if resp.lower() == "y":
             shutil.rmtree(BASE_DIR)
         else:
@@ -166,7 +166,9 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
         with open(aliases_file, "w") as f:
             f.write('PS1="(Revault demo) $PS1"\n')  # It's a hack it shouldn't be there
             f.write(f"alias bd=\"bitcoind -datadir='{bd.bitcoin_dir}'\"\n")
-            f.write(f"alias bcli=\"bitcoin-cli -datadir='{bd.bitcoin_dir}'\"\n")
+            f.write(
+                f"alias bcli=\"bitcoin-cli -datadir='{bd.bitcoin_dir}' -rpcwallet='{bd.rpc.wallet_name}'\"\n"
+            )
             for i, stk in enumerate(rn.stk_wallets):
                 f.write(f'alias stk{i}cli="{revault_cli} --conf {stk.conf_file}"\n')
                 f.write(f'alias stk{i}d="{revaultd_path} --conf {stk.conf_file}"\n')
@@ -190,13 +192,13 @@ def deploy(n_stks, n_mans, n_stkmans, csv):
             subprocess.call([SHELL, "--init-file", f"{aliases_file}", "-i"])
         except Exception as e:
             logging.error(f"Got error: '{str(e)}'")
-            traceback.format_exc()
+            logging.error(traceback.format_exc())
         finally:
             logging.info("Cleaning up Revault deployment")
             rn.cleanup()
     except Exception as e:
         logging.error(f"Got error: '{str(e)}'")
-        traceback.format_exc()
+        logging.error(traceback.format_exc())
     finally:
         logging.info("Cleaning up bitcoind")
         bd.cleanup()
