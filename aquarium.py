@@ -187,7 +187,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
                 f.write(f'alias man{i}d="{revaultd_path} --conf {man.conf_file}"\n')
-            for i, stkman in enumerate(rn.man_wallets):
+            for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
                     f'alias stkman{i}cli="{revault_cli} --conf {stkman.conf_file}"\n'
                 )
@@ -197,8 +197,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
 
         with open(aliases_file, "r") as f:
             available_aliases = "".join(f.readlines()[1:])
-        print("\n\n=========================================================")
-        print("Dropping you into a shell. Exit to end the session.")
+        print("Dropping you into a shell. Exit to end the session.", end="\n\n")
         print(f"Available aliases: \n{available_aliases}\n")
         # In any case clean up all daemons before exiting
         try:
