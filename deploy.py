@@ -222,18 +222,42 @@ def setup_logging():
     )
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    deploy_config = parser.add_argument_group("Deployment configuration")
+    deploy_config.add_argument(
+        "-stks",
+        "--stakeholders",
+        type=int,
+        help="The number of only-stakeholder",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-mans",
+        "--managers",
+        type=int,
+        help="The number of only-manager",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-stkmans",
+        "--stakeholder-managers",
+        type=int,
+        help="The number of both stakeholder-manager",
+        required=True,
+    )
+    deploy_config.add_argument(
+        "-csv",
+        "--timelock",
+        type=int,
+        help="The number of blocks during which an Unvault attempt can be canceled",
+        required=True,
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     setup_logging()
 
-    if len(sys.argv) < 2:
-        print("Not enough arguments")
-        sys.exit(1)
-
-    if sys.argv[1] == "deploy":
-        if len(sys.argv) < 6:
-            print("Need number of stakeholders, managers and stakeholder-managers")
-            sys.exit(1)
-        deploy(int(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5]))
-    else:
-        print("Unknown command")
-        sys.exit(1)
+    args = parse_args()
+    deploy(args.stakeholders, args.managers, args.stakeholder_managers, args.timelock)
