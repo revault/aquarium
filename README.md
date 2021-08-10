@@ -153,7 +153,33 @@ aa1222b51c2d0bacbcec65938650165a678ce5cfede5743ae85b66d1c2787695
 }
 ```
 
+To start using the GUI version of one of the participants:
+```
+stk0gui >/dev/null &
+```
+(redirecting `stdout` here to avoid getting annoyed by the logs)
+
+The above example will start the GUI of the first stakeholder. You can then create a vault out of
+a deposit (which you can create using `bcli` as shown just before). In order to create a vault you
+will have to sign the revocation transactions: for testing purposes `revault-gui` provides a dummy
+signer imitating the flow of signing the transactions on a hardware wallet. Mind to start the dummy
+signer corresponding to the participant, for instance here it would be:
+```
+stk0hw &
+```
+
+You'll just have to click 'sign' on the GUI side and then 'confirm' on the signer side. Once every
+stakeholder has signed the pre-signed transactions, the vault is created. It can then be delegated
+(again requiring all stakeholders' signatures) and eventually spent by the managers (and may be
+canceled..).
+
+__Be careful to only start a single dummy signer at a time__, and the one of the right participant.
+Otherwise the GUI will happily connect to whichever signer your provide it and you'll encounter an
+error of the kind "cool you gave me a signature, but it's actually not for my participant".
+
 ### Tweaking
+
+You can disable the GUI by setting the `WITH_GUI` environment variable to `0`.
 
 The shell you are being dropped in is set to `bash` by default. This can be modified using the
 `SHELL` environment variable, however this has only been tested with `bash`. In fact, it would most
