@@ -1,5 +1,5 @@
 python-bitcoinlib==0.11.0
 ephemeral_port_reserve==1.1.1
 bip32~=1.0
-psycopg2==2.8
+psycopg2-binary==2.9
 pynacl==1.4
