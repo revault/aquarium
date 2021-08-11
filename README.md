@@ -46,6 +46,13 @@ can check your version with:
 cargo --version
 ```
 
+Finally, the GUI has a few dependencies:
+- [`pkg-config`](https://www.freedesktop.org/wiki/Software/pkg-config/) (On Debian/Ubuntu `apt install pkg-config`)
+- [`libxkbcommon`](https://xkbcommon.org/) for the dummy signer (On Debian/Ubuntu `apt install libxkbcommon-dev`)
+- `libelf` (On Debian/Ubuntu `apt install libelf-dev`)
+- [`fontconfig`](https://www.freedesktop.org/wiki/Software/fontconfig/) (On Debian/Ubuntu `apt install libfontconfig1-dev`)
+- [Vulkan Loader](https://github.com/KhronosGroup/Vulkan-Loader) (On Debian/Ubuntu `apt install libvulkan-dev`)
+
 ### Running
 
 The testing framework will spin up the Coordinator, which needs access to a Postgre backend. The
