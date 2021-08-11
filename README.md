@@ -42,6 +42,12 @@ cargo --version
 
 ### Running
 
+Clone the `aquarium` repo first:
+```
+git clone https://github.com/revault/aquarium
+cd aquarium
+```
+
 The testing framework will spin up the Coordinator, which needs access to a Postgre backend. The
 easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/):
 ```
