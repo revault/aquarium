@@ -49,7 +49,8 @@ cd aquarium
 ```
 
 The testing framework will spin up the Coordinator, which needs access to a Postgre backend. The
-easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/):
+easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/) (don't
+forget to add your user to the Docker group!):
 ```
 docker run --rm -d -p 5432:5432 --name postgres-coordinatord -e POSTGRES_PASSWORD=revault -e POSTGRES_USER=revault -e POSTGRES_DB=coordinator_db postgres:alpine
 ```
