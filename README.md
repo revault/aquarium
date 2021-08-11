@@ -42,8 +42,15 @@ cargo --version
 
 ### Running
 
+Clone the `aquarium` repo first:
+```
+git clone https://github.com/revault/aquarium
+cd aquarium
+```
+
 The testing framework will spin up the Coordinator, which needs access to a Postgre backend. The
-easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/):
+easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/) (don't
+forget to add your user to the Docker group!):
 ```
 docker run --rm -d -p 5432:5432 --name postgres-coordinatord -e POSTGRES_PASSWORD=revault -e POSTGRES_USER=revault -e POSTGRES_DB=coordinator_db postgres:alpine
 ```
@@ -87,42 +94,58 @@ You will get into a shell where you can use the `alias`es to start messing aroun
 Dropping you into a shell. Exit to end the session.
 
 Available aliases: 
+Dropping you into a shell. Exit to end the session.
+
+Available aliases: 
 alias bd="bitcoind -datadir='/home/darosior/projects/revault/aquarium/demo/bitcoind'"
 alias bcli="bitcoin-cli -datadir='/home/darosior/projects/revault/aquarium/demo/bitcoind' -rpcwallet='revaultd-tests'"
 alias stk0cli="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revault-cli --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stk-0/config.toml"
 alias stk0d="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revaultd --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stk-0/config.toml"
+alias stk0gui='/home/darosior/projects/revault/aquarium/src/revault-gui/target/debug/revault-gui --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stk-0/regtest/gui_config.toml'
+alias stk0hw='/home/darosior/projects/revault/aquarium/src/revault-gui/contrib/tools/dummysigner/target/debug/dummysigner xprv9s21ZrQH143K2FauLaRcUmvZStHLddDoEwRNGmbB5wcSEW3gmHst76wVn7vjcPDj4CMgVQiNK5pbsvE9MLwxAq8362bxG6vq624fMALjTBP'
 alias man0cli="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revault-cli --conf /home/darosior/projects/revault/aquarium/demo/revaultd-man-0/config.toml"
 alias man0d="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revaultd --conf /home/darosior/projects/revault/aquarium/demo/revaultd-man-0/config.toml"
-alias stkman0cli="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revault-cli --conf /home/darosior/projects/revault/aquarium/demo/revaultd-man-0/config.toml"
-alias stkman0d="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revaultd --conf /home/darosior/projects/revault/aquarium/demo/revaultd-man-0/config.toml"
+alias man0gui='/home/darosior/projects/revault/aquarium/src/revault-gui/target/debug/revault-gui --conf /home/darosior/projects/revault/aquarium/demo/revaultd-man-0/regtest/gui_config.toml'
+alias man0hw='/home/darosior/projects/revault/aquarium/src/revault-gui/contrib/tools/dummysigner/target/debug/dummysigner xprv9s21ZrQH143K37KsR3v8Ym5Yr19goviJphiMfsVRnfnyoSoGeHP3pS9nToQRQL71WmEiw7o1DeTcuTzpFcRUyJuX8gg2zVcoaD4bcQUHraF'
+alias stkman0cli="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revault-cli --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stkman-0/config.toml"
+alias stkman0d="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revaultd --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stkman-0/config.toml"
+alias stkman0gui='/home/darosior/projects/revault/aquarium/src/revault-gui/target/debug/revault-gui --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stkman-0/regtest/gui_config.toml'
+alias stkman0hwstk='/home/darosior/projects/revault/aquarium/src/revault-gui/contrib/tools/dummysigner/target/debug/dummysigner xprv9s21ZrQH143K3E7K3mnFzrnJkmYw54o72CnKBzCQugpSuxpac932XaKjtehYVxcj6XRVga4CgTffNqQxJgHhXfuPUad7yLkpzqjH21HXA2y'
+alias stkman0hwman='/home/darosior/projects/revault/aquarium/src/revault-gui/contrib/tools/dummysigner/target/debug/dummysigner xprv9s21ZrQH143K3bo5gdizi8GBGAwthRzEryhyqJhz1Bu4jW3UJp7D18DYpDoEGzWJaXmWzLp53cfxNphcRbsQGaanKshSDQN8G1ZVu6zkm5t'
+alias stkman1cli="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revault-cli --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stkman-1/config.toml"
+alias stkman1d="/home/darosior/projects/revault/aquarium/src/revaultd/target/debug/revaultd --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stkman-1/config.toml"
+alias stkman1gui='/home/darosior/projects/revault/aquarium/src/revault-gui/target/debug/revault-gui --conf /home/darosior/projects/revault/aquarium/demo/revaultd-stkman-1/regtest/gui_config.toml'
+alias stkman1hwstk='/home/darosior/projects/revault/aquarium/src/revault-gui/contrib/tools/dummysigner/target/debug/dummysigner xprv9s21ZrQH143K48BV21L6BFSmR7o7csjdDtd93PgCsxMX2wcbVmzEREa967qwVA5TReYR3fsnGm5V5WU2UTH6e5WM6ZiWpBxEizCDvkuJJsL'
+alias stkman1hwman='/home/darosior/projects/revault/aquarium/src/revault-gui/contrib/tools/dummysigner/target/debug/dummysigner xprv9s21ZrQH143K2NzmcGzNiVsumu5KXKTDzXKEse3L1TGd8EvwwHVvDjeNGzpqB4WmXBUsW28qqSXqLodL6L4D7kvTsneixvw5NW8KX9tbr7G'
+```
 
-
+Here is an example funding a new deposit using the CLI (you can also get an address using the GUI):
+```
 (Revault demo) darosior@darosior:~/projects/revault/aquarium$ stkman1cli getdepositaddress
 {
   "result": {
     "address": "bcrt1qmelp89d78y5ujrthqu6sdtc39kraadw3lap8skfzd24jcjt9k8qq4n8lxj"
   }
 }
-(Revault demo) darosior@darosior:~/projects/revault/aquarium$ bcli sendtoaddress bcrt1qmelp89d78y5ujrthqu6sdtc39kraadw3lap8skfzd24jcjt9k8qq4n8lxj 0.42
-aa1222b51c2d0bacbcec65938650165a678ce5cfede5743ae85b66d1c2787695
+```
+
+So we got a deposit address. At the moment no vault were created, so let's pay to the deposit
+address..
+```
 (Revault demo) darosior@darosior:~/projects/revault/aquarium$ stkman1cli listvaults
 {
   "result": {
-    "vaults": [
-      {
-        "address": "bcrt1qmelp89d78y5ujrthqu6sdtc39kraadw3lap8skfzd24jcjt9k8qq4n8lxj",
-        "amount": 42000000,
-        "blockheight": 0,
-        "derivation_index": 0,
-        "received_at": 1628591587,
-        "status": "unconfirmed",
-        "txid": "aa1222b51c2d0bacbcec65938650165a678ce5cfede5743ae85b66d1c2787695",
-        "updated_at": 1628591587,
-        "vout": 1
-      }
-    ]
+    "vaults": []
   }
 }
+(Revault demo) darosior@darosior:~/projects/revault/aquarium$ bcli sendtoaddress bcrt1qmelp89d78y5ujrthqu6sdtc39kraadw3lap8skfzd24jcjt9k8qq4n8lxj 0.42
+aa1222b51c2d0bacbcec65938650165a678ce5cfede5743ae85b66d1c2787695
+```
+
+... And get this deposit confirmed with >=6 confirmations (the default minimum confirmations for a
+deposit to be considered confirmed by the wallet daemons). There is now a vault which status is
+funded:
+```
 (Revault demo) darosior@darosior:~/projects/revault/aquarium$ bcli generatetoaddress 7 $(bcli getnewaddress) 
 [
   "0550e0a3e06c220964fcf84eb9bbec03480762adae698749d54020897dc2bd81",
@@ -160,10 +183,10 @@ stk0gui >/dev/null &
 (redirecting `stdout` here to avoid getting annoyed by the logs)
 
 The above example will start the GUI of the first stakeholder. You can then create a vault out of
-a deposit (which you can create using `bcli` as shown just before). In order to create a vault you
-will have to sign the revocation transactions: for testing purposes `revault-gui` provides a dummy
-signer imitating the flow of signing the transactions on a hardware wallet. Mind to start the dummy
-signer corresponding to the participant, for instance here it would be:
+a deposit. In order to create a vault you will have to sign the revocation transactions: for testing
+purposes `revault-gui` provides a dummy signer imitating the flow of signing the transactions on a
+hardware wallet. Mind to start the dummy signer corresponding to the participant, for instance here
+it would be:
 ```
 stk0hw &
 ```
@@ -176,6 +199,10 @@ canceled..).
 __Be careful to only start a single dummy signer at a time__, and the one of the right participant.
 Otherwise the GUI will happily connect to whichever signer your provide it and you'll encounter an
 error of the kind "cool you gave me a signature, but it's actually not for my participant".
+
+Note also that the `stkman`s have two `alias`es for their dummy signer, for instance `stkman0hwstk`
+and `stkman0hwman`: they are corresponding to respectively the "stakeholder signer" and "manager
+signer" since the participant plays both roles.
 
 ### Tweaking
 
