@@ -184,6 +184,10 @@ __Be careful to only start a single dummy signer at a time__, and the one of the
 Otherwise the GUI will happily connect to whichever signer your provide it and you'll encounter an
 error of the kind "cool you gave me a signature, but it's actually not for my participant".
 
+Note also that the `stkman`s have two `alias`es for their dummy signer, for instance `stkman0hwstk`
+and `stkman0hwman`: they are corresponding to respectively the "stakeholder signer" and "manager
+signer" since the participant plays both roles.
+
 ### Tweaking
 
 You can disable the GUI by setting the `WITH_GUI` environment variable to `0`.
