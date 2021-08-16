@@ -96,7 +96,8 @@ Stakeholder-Managers who can Spend with a threshold of `2` after `6` blocks:
 POSTGRES_USER=revault POSTGRES_PASS=revault ./aquarium.py --stakeholders 1 --managers 1 --stakeholder-managers 2 --timelock 6 --managers-threshold 2
 ```
 
-You will get into a shell where you can use the `alias`es to start messing around:
+You will get into a shell where you can use the `alias`es to start messing around (you can consult
+them at any time using the `alias` command):
 ```
 Dropping you into a shell. Exit to end the session.
 
