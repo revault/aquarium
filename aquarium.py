@@ -32,8 +32,8 @@ REVAULT_GUI_SRC_DIR = os.path.join(SRC_DIR, "revault-gui")
 SHELL = os.getenv("SHELL", "bash")
 COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "0.2")
 COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "0.2")
-REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "master")
-REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "master")
+REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "0.2")
+REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "0.2")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 
 
