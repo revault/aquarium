@@ -209,8 +209,35 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None, with_cosigs=False):
             with_cosigs=with_cosigs,
         )
 
+        dummysigner_conf_file = os.path.join(BASE_DIR, "dummysigner.toml")
         # We use a hack to avoid having to modify the test_framework to include the GUI.
         if WITH_GUI:
+            emergency_address = rn.emergency_address
+            deposit_desc = rn.deposit_desc
+            unvault_desc = rn.unvault_desc
+            cpfp_desc = rn.cpfp_desc
+            with open(dummysigner_conf_file, "w") as f:
+                f.write(f'emergency_address = "{emergency_address}"\n')
+                for i, stk in enumerate(rn.stk_wallets):
+                    f.write("[[keys]]\n")
+                    f.write(f'name = "stakeholder_{i}_key"\n')
+                    f.write(f'xpriv = "{stk.stk_keychain.hd.get_xpriv()}"\n')
+                for i, man in enumerate(rn.man_wallets):
+                    f.write("[[keys]]\n")
+                    f.write(f'name = "manager_{i}_key"\n')
+                    f.write(f'xpriv = "{man.man_keychain.hd.get_xpriv()}"\n')
+                for i, stkman in enumerate(rn.stkman_wallets):
+                    f.write("[[keys]]\n")
+                    f.write(f'name = "stkman_{i}_stakeholder_key"\n')
+                    f.write(f'xpriv = "{stkman.stk_keychain.hd.get_xpriv()}"\n')
+                    f.write("[[keys]]\n")
+                    f.write(f'name = "stkman_{i}_manager_key"\n')
+                    f.write(f'xpriv = "{stkman.man_keychain.hd.get_xpriv()}"\n')
+                f.write("[descriptors]\n")
+                f.write(f'deposit_descriptor = "{deposit_desc}"\n')
+                f.write(f'unvault_descriptor = "{unvault_desc}"\n')
+                f.write(f'cpfp_descriptor = "{cpfp_desc}"\n')
+
             for p in rn.participants():
                 p.gui_conf_file = os.path.join(
                     p.datadir_with_network, "gui_config.toml"
@@ -278,6 +305,9 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None, with_cosigs=False):
                     f.write(
                         f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.hd.get_xpriv()}'\n"
                     )
+            # hw for all the keys.
+            if WITH_GUI:
+                f.write(f"alias hw='{dummysigner} --conf {dummysigner_conf_file}'\n")
 
         with open(aliases_file, "r") as f:
             available_aliases = "".join(f.readlines()[1:])
