@@ -56,6 +56,9 @@ class RevaultNetwork:
 
         self.csv = None
         self.emergency_address = None
+        self.deposit_desc = None
+        self.unvault_desc = None
+        self.cpfp_descriptor = None
 
     def deploy(
         self,
@@ -106,6 +109,9 @@ class RevaultNetwork:
         (deposit_desc, unvault_desc, cpfp_desc) = get_descriptors(
             stks_xpubs, cosigs_keys, mans_xpubs, managers_threshold, cpfp_xpubs, csv
         )
+        self.deposit_desc = deposit_desc
+        self.unvault_desc = unvault_desc
+        self.cpfp_desc = cpfp_desc
         # Generate a dummy 2of2 to be used as our Emergency address
         bitcoin.SelectParams("regtest")
         pka = str(CBitcoinSecret.from_secret_bytes(os.urandom(32)))
