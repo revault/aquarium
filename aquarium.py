@@ -265,12 +265,18 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
                     f.write(
                         f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'\n"
                     )
+                    f.write(
+                        f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.get_xpriv()}'\n"
+                    )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
                 f.write(f'alias man{i}d="{revaultd_path} --conf {man.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
                         f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'\n"
+                    )
+                    f.write(
+                        f"alias man{i}hw='{dummysigner} {man.man_keychain.get_xpriv()}'\n"
                     )
             for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
@@ -283,6 +289,13 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
                     f.write(
                         f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'\n"
                     )
+                    f.write(
+                        f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.get_xpriv()}'\n"
+                    )
+                    f.write(
+                        f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.get_xpriv()}'\n"
+                    )
+
             # hw for all the keys.
             if WITH_GUI:
                 f.write(f"alias hw='{dummysigner} --conf {dummysigner_conf_file}'\n")
