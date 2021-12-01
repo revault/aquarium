@@ -159,14 +159,18 @@ class Cosig(Participant):
         return self.hd.get_privkey_from_path(self.static_key_path)
 
 
-def get_participants(n_stk, n_man, n_stkman=0):
+def get_participants(n_stk, n_man, n_stkman=0, withcosigs=bool):
     """Get the configuration entries for each participant."""
     stakeholders = [User() for _ in range(n_stk)]
-    cosigs = [Cosig() for _ in range(n_stk)]
     managers = [User() for _ in range(n_man)]
 
+    cosigs = []
+    stkman_cosig = []
+    if withcosigs:
+        cosigs = [Cosig() for _ in range(n_stk)]
+        stkman_cosig = [Cosig() for _ in range(n_stkman)]
+
     stkman_stk = [User() for _ in range(n_stkman)]
-    stkman_cosig = [Cosig() for _ in range(n_stkman)]
     stkman_man = [User() for _ in range(n_stkman)]
 
     return (
@@ -187,7 +191,9 @@ def get_descriptors(stks_xpubs, cosigs_keys, mans_xpubs, mans_thresh, cpfp_xpubs
         )
     )
     try:
-        subprocess.check_call(["cargo", "build", "--manifest-path", f"{mscompiler_dir}/Cargo.toml"])
+        subprocess.check_call(
+            ["cargo", "build", "--manifest-path", f"{mscompiler_dir}/Cargo.toml"]
+        )
     except subprocess.CalledProcessError as e:
         logging.error(f"Error compiling mscompiler: {str(e)}")
         raise e

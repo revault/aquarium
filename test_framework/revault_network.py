@@ -64,6 +64,7 @@ class RevaultNetwork:
         n_stkmanagers=0,
         csv=None,
         managers_threshold=None,
+        withcosigs=False,
     ):
         """
         Deploy a revault setup with {n_stakeholders} stakeholders, {n_managers}
@@ -85,7 +86,7 @@ class RevaultNetwork:
             stkman_stk_keychains,
             stkman_cosig_keychains,
             stkman_man_keychains,
-        ) = get_participants(n_stakeholders, n_managers, n_stkmanagers)
+        ) = get_participants(n_stakeholders, n_managers, n_stkmanagers, withcosigs)
         stks_keychains = stkonly_keychains + stkman_stk_keychains
         cosigs_keychains = stkonly_cosig_keychains + stkman_cosig_keychains
         mans_keychains = manonly_keychains + stkman_man_keychains
@@ -146,10 +147,13 @@ class RevaultNetwork:
             stkonly_noisepubs.append(
                 bytes(Curve25519Private(stkonly_noiseprivs[i]).public_key)
             )
-            stkonly_cosig_noiseprivs.append(os.urandom(32))
-            stkonly_cosig_noisepubs.append(
-                bytes(Curve25519Private(stkonly_cosig_noiseprivs[i]).public_key)
-            )
+
+            if withcosigs:
+                stkonly_cosig_noiseprivs.append(os.urandom(32))
+                stkonly_cosig_noisepubs.append(
+                    bytes(Curve25519Private(stkonly_cosig_noiseprivs[i]).public_key)
+                )
+
             # Unused yet
             stkonly_wt_noiseprivs.append(os.urandom(32))
             stkonly_wt_noisepubs.append(
@@ -164,10 +168,13 @@ class RevaultNetwork:
             stkman_noisepubs.append(
                 bytes(Curve25519Private(stkman_noiseprivs[i]).public_key)
             )
-            stkman_cosig_noiseprivs.append(os.urandom(32))
-            stkman_cosig_noisepubs.append(
-                bytes(Curve25519Private(stkman_cosig_noiseprivs[i]).public_key)
-            )
+
+            if withcosigs:
+                stkman_cosig_noiseprivs.append(os.urandom(32))
+                stkman_cosig_noisepubs.append(
+                    bytes(Curve25519Private(stkman_cosig_noiseprivs[i]).public_key)
+                )
+
             # Unused yet
             stkman_wt_noiseprivs.append(os.urandom(32))
             stkman_wt_noisepubs.append(
@@ -205,6 +212,7 @@ class RevaultNetwork:
         self.daemons.append(coordinatord)
 
         cosigners_info = []
+        # it withcosigs is false, stkonly_cosig_noisepubs is empty
         for (i, noisepub) in enumerate(stkonly_cosig_noisepubs):
             stkonly_cosigners_ports.append(reserve())
             cosigners_info.append(
@@ -213,6 +221,7 @@ class RevaultNetwork:
                     "noise_key": noisepub,
                 }
             )
+        # it withcosigs is false, stkman_cosig_noisepubs is empty
         for (i, noisepub) in enumerate(stkman_cosig_noisepubs):
             stkman_cosigners_ports.append(reserve())
             cosigners_info.append(
@@ -254,19 +263,19 @@ class RevaultNetwork:
             revaultd.start()
             self.stk_wallets.append(revaultd)
 
-            datadir = os.path.join(self.root_dir, f"cosignerd-stk-{i}")
-            os.makedirs(datadir, exist_ok=True)
-
-            cosignerd = Cosignerd(
-                self.cosignerd_path,
-                datadir,
-                stkonly_cosig_noiseprivs[i],
-                stkonly_cosig_keychains[i].get_bitcoin_priv(),
-                stkonly_cosigners_ports[i],
-                man_noisepubs + stkman_noisepubs,
-            )
-            cosignerd.start()
-            self.daemons.append(cosignerd)
+            if withcosigs:
+                datadir = os.path.join(self.root_dir, f"cosignerd-stk-{i}")
+                os.makedirs(datadir, exist_ok=True)
+                cosignerd = Cosignerd(
+                    self.cosignerd_path,
+                    datadir,
+                    stkonly_cosig_noiseprivs[i],
+                    stkonly_cosig_keychains[i].get_bitcoin_priv(),
+                    stkonly_cosigners_ports[i],
+                    man_noisepubs + stkman_noisepubs,
+                )
+                cosignerd.start()
+                self.daemons.append(cosignerd)
 
         # Spin up the stakeholder-managers wallets and their cosigning servers
         for i, stkman in enumerate(stkman_stk_keychains):
@@ -305,19 +314,19 @@ class RevaultNetwork:
             revaultd.start()
             self.stkman_wallets.append(revaultd)
 
-            datadir = os.path.join(self.root_dir, f"cosignerd-stkman-{i}")
-            os.makedirs(datadir, exist_ok=True)
-
-            cosignerd = Cosignerd(
-                self.cosignerd_path,
-                datadir,
-                stkman_cosig_noiseprivs[i],
-                stkman_cosig_keychains[i].get_bitcoin_priv(),
-                stkman_cosigners_ports[i],
-                man_noisepubs + stkman_noisepubs,
-            )
-            cosignerd.start()
-            self.daemons.append(cosignerd)
+            if withcosigs:
+                datadir = os.path.join(self.root_dir, f"cosignerd-stkman-{i}")
+                os.makedirs(datadir, exist_ok=True)
+                cosignerd = Cosignerd(
+                    self.cosignerd_path,
+                    datadir,
+                    stkman_cosig_noiseprivs[i],
+                    stkman_cosig_keychains[i].get_bitcoin_priv(),
+                    stkman_cosigners_ports[i],
+                    man_noisepubs + stkman_noisepubs,
+                )
+                cosignerd.start()
+                self.daemons.append(cosignerd)
 
         # Spin up the managers (only) wallets
         for i, man in enumerate(manonly_keychains):
