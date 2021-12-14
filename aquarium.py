@@ -30,10 +30,10 @@ COSIGNERD_SRC_DIR = os.path.join(SRC_DIR, "cosignerd")
 REVAULTD_SRC_DIR = os.path.join(SRC_DIR, "revaultd")
 REVAULT_GUI_SRC_DIR = os.path.join(SRC_DIR, "revault-gui")
 SHELL = os.getenv("SHELL", "bash")
-COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "0.2")
-COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "0.2")
-REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "0.2")
-REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "0.2")
+COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "9b90fcd3ad5dfb51bf50dcaef859c5cc00dbfe3a")
+COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "e41e5cafc33568f61076700ba360f831e3b072cc")
+REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "gethistory-2")
+REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "gethistory")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 
 
@@ -88,7 +88,8 @@ def build_all_binaries():
     )
 
     logging.info(f"Building cosignerd at '{REVAULTD_VERSION}' in '{REVAULTD_SRC_DIR}'")
-    build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION, "https://github.com/revault/revaultd")
+    build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION,
+            "https://github.com/edouardparis/revaultd")
 
     if WITH_GUI:
         logging.info(
@@ -98,7 +99,7 @@ def build_all_binaries():
         build_src(
             REVAULT_GUI_SRC_DIR,
             REVAULT_GUI_VERSION,
-            "https://github.com/revault/revault-gui",
+            "https://github.com/edouardparis/revault-gui",
         )
 
         logging.info(f"Building revault-gui's dummysigner")
@@ -177,7 +178,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
         )
         revaultd_path = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revaultd")
         coordinatord_path = os.path.join(
-            COORDINATORD_SRC_DIR, "target", "debug", "revault_coordinatord"
+            COORDINATORD_SRC_DIR, "target", "debug", "coordinatord"
         )
         cosignerd_path = os.path.join(COSIGNERD_SRC_DIR, "target", "debug", "cosignerd")
         rn = RevaultNetwork(

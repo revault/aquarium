@@ -72,11 +72,11 @@ class Revaultd(TailableProc):
                 self.stk_keychain = stk_config["keychain"]
                 f.write(f'xpub = "{self.stk_keychain.get_xpub()}"\n')
                 f.write("watchtowers = [")
-                for wt in stk_config["watchtowers"]:
-                    f.write(
-                        f"{{ \"host\" = \"{wt['host']}\", \"noise_key\" = "
-                        f"\"{wt['noise_key'].hex()}\" }}, "
-                    )
+                # for wt in stk_config["watchtowers"]:
+                #     f.write(
+                #         f"{{ \"host\" = \"{wt['host']}\", \"noise_key\" = "
+                #         f"\"{wt['noise_key'].hex()}\" }}, "
+                #     )
                 f.write("]\n")
                 f.write(f"emergency_address = \"{stk_config['emergency_address']}\"\n")
 
