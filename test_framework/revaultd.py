@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 
 from test_framework.utils import (
     TailableProc,
@@ -8,13 +7,13 @@ from test_framework.utils import (
     UnixDomainSocketRpc,
     LOG_LEVEL,
     wait_for,
+    REVAULTD_PATH,
 )
 
 
 class Revaultd(TailableProc):
     def __init__(
         self,
-        binary_path,
         datadir,
         deposit_desc,
         unvault_desc,
@@ -22,14 +21,23 @@ class Revaultd(TailableProc):
         noise_priv,
         coordinator_noise_key,
         coordinator_port,
-        bitcoind,
+        bitcoind_rpc_port,
+        bitcoind_cookie_path,
         stk_config=None,
         man_config=None,
+        wt_process=None,
+        cpfp_priv=None,
     ):
+        # set descriptors
+        self.cpfp_desc = cpfp_desc
+        self.deposit_desc = deposit_desc
+        self.unvault_desc = unvault_desc
+
         assert stk_config is not None or man_config is not None
         TailableProc.__init__(self, datadir, verbose=VERBOSE)
 
         self.prefix = os.path.split(datadir)[-1]
+        self.watchtower = wt_process
 
         # The data is stored in a per-network directory. We need to create it
         # in order to write the Noise private key
@@ -37,7 +45,7 @@ class Revaultd(TailableProc):
         os.makedirs(self.datadir_with_network, exist_ok=True)
 
         self.conf_file = os.path.join(datadir, "config.toml")
-        self.cmd_line = [binary_path, "--conf", f"{self.conf_file}"]
+        self.cmd_line = [REVAULTD_PATH, "--conf", f"{self.conf_file}"]
         socket_path = os.path.join(self.datadir_with_network, "revaultd_rpc")
         self.rpc = UnixDomainSocketRpc(socket_path)
 
@@ -45,7 +53,11 @@ class Revaultd(TailableProc):
         with open(noise_secret_file, "wb") as f:
             f.write(noise_priv)
 
-        bitcoind_cookie = os.path.join(bitcoind.bitcoin_dir, "regtest", ".cookie")
+        if cpfp_priv is not None:
+            cpfp_secret_file = os.path.join(self.datadir_with_network, "cpfp_secret")
+            with open(cpfp_secret_file, "wb") as f:
+                f.write(cpfp_priv)
+
         with open(self.conf_file, "w") as f:
             f.write(f"data_dir = '{datadir}'\n")
             f.write("daemon = false\n")
@@ -63,8 +75,8 @@ class Revaultd(TailableProc):
 
             f.write("[bitcoind_config]\n")
             f.write('network = "regtest"\n')
-            f.write(f"cookie_path = '{bitcoind_cookie}'\n")
-            f.write(f"addr = '127.0.0.1:{bitcoind.rpcport}'\n")
+            f.write(f"cookie_path = '{bitcoind_cookie_path}'\n")
+            f.write(f"addr = '127.0.0.1:{bitcoind_rpc_port}'\n")
             f.write("poll_interval_secs = 10\n")
 
             if stk_config is not None:
@@ -72,11 +84,11 @@ class Revaultd(TailableProc):
                 self.stk_keychain = stk_config["keychain"]
                 f.write(f'xpub = "{self.stk_keychain.get_xpub()}"\n')
                 f.write("watchtowers = [")
-                # for wt in stk_config["watchtowers"]:
-                #     f.write(
-                #         f"{{ \"host\" = \"{wt['host']}\", \"noise_key\" = "
-                #         f"\"{wt['noise_key'].hex()}\" }}, "
-                #     )
+                for wt in stk_config["watchtowers"]:
+                    f.write(
+                        f"{{ \"host\" = \"{wt['host']}\", \"noise_key\" = "
+                        f"\"{wt['noise_key']}\" }}, "
+                    )
                 f.write("]\n")
                 f.write(f"emergency_address = \"{stk_config['emergency_address']}\"\n")
 
@@ -155,7 +167,6 @@ class Revaultd(TailableProc):
 class ManagerRevaultd(Revaultd):
     def __init__(
         self,
-        revaultd_path,
         datadir,
         deposit_desc,
         unvault_desc,
@@ -163,15 +174,16 @@ class ManagerRevaultd(Revaultd):
         noise_priv,
         coordinator_noise_key,
         coordinator_port,
-        bitcoind,
+        bitcoind_rpc,
+        bitcoind_cookie,
         man_config,
+        cpfp_priv,
     ):
         """The wallet daemon for a manager.
         Needs to know all xpubs, and needs to be able to connect to the
-        coordinator and the cosigners.
+        coordinator and optionally the cosigning servers.
         """
         super(ManagerRevaultd, self).__init__(
-            revaultd_path,
             datadir,
             deposit_desc,
             unvault_desc,
@@ -179,8 +191,12 @@ class ManagerRevaultd(Revaultd):
             noise_priv,
             coordinator_noise_key,
             coordinator_port,
-            bitcoind,
+            bitcoind_rpc,
+            bitcoind_cookie,
+            stk_config=None,
             man_config=man_config,
+            wt_process=None,
+            cpfp_priv=cpfp_priv,
         )
         assert self.man_keychain is not None
 
@@ -188,7 +204,6 @@ class ManagerRevaultd(Revaultd):
 class StakeholderRevaultd(Revaultd):
     def __init__(
         self,
-        binary_path,
         datadir,
         deposit_desc,
         unvault_desc,
@@ -196,15 +211,16 @@ class StakeholderRevaultd(Revaultd):
         noise_priv,
         coordinator_noise_key,
         coordinator_port,
-        bitcoind,
+        bitcoind_rpc,
+        bitcoind_cookie,
         stk_config,
+        wt_process,
     ):
         """The wallet daemon for a stakeholder.
         Needs to know all xpubs, and needs to be able to connect to the
         coordinator and its watchtower(s).
         """
         super(StakeholderRevaultd, self).__init__(
-            binary_path,
             datadir,
             deposit_desc,
             unvault_desc,
@@ -212,9 +228,12 @@ class StakeholderRevaultd(Revaultd):
             noise_priv,
             coordinator_noise_key,
             coordinator_port,
-            bitcoind,
-            stk_config,
+            bitcoind_rpc,
+            bitcoind_cookie,
+            stk_config=stk_config,
             man_config=None,
+            wt_process=wt_process,
+            cpfp_priv=None,
         )
         assert self.stk_keychain is not None
 
@@ -222,7 +241,6 @@ class StakeholderRevaultd(Revaultd):
 class StkManRevaultd(Revaultd):
     def __init__(
         self,
-        binary_path,
         datadir,
         deposit_desc,
         unvault_desc,
@@ -230,13 +248,15 @@ class StkManRevaultd(Revaultd):
         noise_priv,
         coordinator_noise_key,
         coordinator_port,
-        bitcoind,
+        bitcoind_rpc,
+        bitcoind_cookie,
         stk_config,
         man_config,
+        wt_process,
+        cpfp_priv,
     ):
         """A revaultd instance that is both stakeholder and manager."""
         super(StkManRevaultd, self).__init__(
-            binary_path,
             datadir,
             deposit_desc,
             unvault_desc,
@@ -244,7 +264,10 @@ class StkManRevaultd(Revaultd):
             noise_priv,
             coordinator_noise_key,
             coordinator_port,
-            bitcoind,
-            stk_config,
-            man_config,
+            bitcoind_rpc,
+            bitcoind_cookie,
+            stk_config=stk_config,
+            man_config=man_config,
+            wt_process=wt_process,
+            cpfp_priv=cpfp_priv,
         )

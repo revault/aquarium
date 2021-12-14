@@ -6,6 +6,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import test_framework
 import time
 import traceback
 
@@ -20,6 +21,7 @@ from test_framework.utils import (
     EXECUTOR_WORKERS,
     LOG_LEVEL,
     DEBUG_GUI,
+    REVAULTD_PATH,
 )
 
 
@@ -30,9 +32,9 @@ COSIGNERD_SRC_DIR = os.path.join(SRC_DIR, "cosignerd")
 REVAULTD_SRC_DIR = os.path.join(SRC_DIR, "revaultd")
 REVAULT_GUI_SRC_DIR = os.path.join(SRC_DIR, "revault-gui")
 SHELL = os.getenv("SHELL", "bash")
-COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "9b90fcd3ad5dfb51bf50dcaef859c5cc00dbfe3a")
-COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "e41e5cafc33568f61076700ba360f831e3b072cc")
-REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "gethistory-2")
+COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "master")
+COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "master")
+REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "master")
 REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "gethistory")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 
@@ -88,8 +90,7 @@ def build_all_binaries():
     )
 
     logging.info(f"Building cosignerd at '{REVAULTD_VERSION}' in '{REVAULTD_SRC_DIR}'")
-    build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION,
-            "https://github.com/edouardparis/revaultd")
+    build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION, "https://github.com/revault/revaultd")
 
     if WITH_GUI:
         logging.info(
@@ -104,7 +105,12 @@ def build_all_binaries():
 
         logging.info(f"Building revault-gui's dummysigner")
         subprocess.check_call(
-            ["cargo", "build", "--manifest-path", f"{REVAULT_GUI_SRC_DIR}/contrib/tools/dummysigner/Cargo.toml"]
+            [
+                "cargo",
+                "build",
+                "--manifest-path",
+                f"{REVAULT_GUI_SRC_DIR}/contrib/tools/dummysigner/Cargo.toml",
+            ]
         )
 
 
@@ -127,9 +133,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
     if not POSTGRES_IS_SETUP:
         logging.error("I need the Postgres environment variable to be set.")
         print("Example:")
-        print(
-            f'  POSTGRES_USER="revault" POSTGRES_PASS="revault" {sys.argv[0]}'
-        )
+        print(f'  POSTGRES_USER="revault" POSTGRES_PASS="revault" {sys.argv[0]}')
         sys.exit(1)
 
     if not is_listening(POSTGRES_HOST, 5432):
@@ -176,23 +180,25 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             f" {n_mans} only-managers, {n_stkmans} both stakeholders and managers,"
             f" a CSV of {csv} and a managers threshold of {mans_thresh or n_mans + n_stkmans}"
         )
-        revaultd_path = os.path.join(REVAULTD_SRC_DIR, "target", "debug", "revaultd")
-        coordinatord_path = os.path.join(
+        # Monkey patch the servers binaries paths
+        test_framework.revaultd.REVAULTD_PATH = os.path.join(
+            REVAULTD_SRC_DIR, "target", "debug", "revaultd"
+        )
+        test_framework.coordinatord.COORDINATORD_PATH = os.path.join(
             COORDINATORD_SRC_DIR, "target", "debug", "coordinatord"
         )
-        cosignerd_path = os.path.join(COSIGNERD_SRC_DIR, "target", "debug", "cosignerd")
+        test_framework.cosignerd.COSIGNERD_PATH = os.path.join(
+            COSIGNERD_SRC_DIR, "target", "debug", "cosignerd"
+        )
         rn = RevaultNetwork(
             BASE_DIR,
             bd,
             executor(),
-            revaultd_path,
-            coordinatord_path,
-            cosignerd_path,
             POSTGRES_USER,
             POSTGRES_PASS,
             POSTGRES_HOST,
         )
-        rn.deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh)
+        rn.deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh, with_watchtowers=False)
 
         # We use a hack to avoid having to modify the test_framework to include the GUI.
         if WITH_GUI:
@@ -202,7 +208,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
                 )
                 with open(p.gui_conf_file, "w") as f:
                     f.write(f"revaultd_config_path = '{p.conf_file}'\n")
-                    f.write(f"revaultd_path = '{revaultd_path}'\n")
+                    f.write(f"revaultd_path = '{REVAULTD_PATH}'\n")
                     f.write(f"log_level = '{LOG_LEVEL}'\n")
                     f.write(f"debug = {'true' if DEBUG_GUI else 'false'}")
             revault_gui = os.path.join(
@@ -228,40 +234,40 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             )
             for i, stk in enumerate(rn.stk_wallets):
                 f.write(f'alias stk{i}cli="{revault_cli} --conf {stk.conf_file}"\n')
-                f.write(f'alias stk{i}d="{revaultd_path} --conf {stk.conf_file}"\n')
+                f.write(f'alias stk{i}d="{REVAULTD_PATH} --conf {stk.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
                         f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'\n"
                     )
                     f.write(
-                        f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.get_xpriv()}'\n"
+                        f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.hd.get_xpriv()}'\n"
                     )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
-                f.write(f'alias man{i}d="{revaultd_path} --conf {man.conf_file}"\n')
+                f.write(f'alias man{i}d="{REVAULTD_PATH} --conf {man.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
                         f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'\n"
                     )
                     f.write(
-                        f"alias man{i}hw='{dummysigner} {man.man_keychain.get_xpriv()}'\n"
+                        f"alias man{i}hw='{dummysigner} {man.man_keychain.hd.get_xpriv()}'\n"
                     )
             for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
                     f'alias stkman{i}cli="{revault_cli} --conf {stkman.conf_file}"\n'
                 )
                 f.write(
-                    f'alias stkman{i}d="{revaultd_path} --conf {stkman.conf_file}"\n'
+                    f'alias stkman{i}d="{REVAULTD_PATH} --conf {stkman.conf_file}"\n'
                 )
                 if WITH_GUI:
                     f.write(
                         f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'\n"
                     )
                     f.write(
-                        f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.get_xpriv()}'\n"
+                        f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.hd.get_xpriv()}'\n"
                     )
                     f.write(
-                        f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.get_xpriv()}'\n"
+                        f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.hd.get_xpriv()}'\n"
                     )
 
         with open(aliases_file, "r") as f:

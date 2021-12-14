@@ -1,17 +1,16 @@
 import os
-import psycopg2
 
 from test_framework.utils import (
     TailableProc,
     VERBOSE,
     LOG_LEVEL,
+    COSIGNERD_PATH,
 )
 
 
 class Cosignerd(TailableProc):
     def __init__(
         self,
-        binary_path,
         datadir,
         noise_priv,
         bitcoin_priv,
@@ -20,7 +19,7 @@ class Cosignerd(TailableProc):
     ):
         TailableProc.__init__(self, datadir, verbose=VERBOSE)
         self.conf_file = os.path.join(datadir, "config.toml")
-        self.cmd_line = [binary_path, "--conf", f"{self.conf_file}"]
+        self.cmd_line = [COSIGNERD_PATH, "--conf", f"{self.conf_file}"]
         self.prefix = "cosignerd"
 
         noise_secret_file = os.path.join(datadir, "noise_secret")

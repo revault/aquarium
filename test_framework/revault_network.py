@@ -1,22 +1,22 @@
 import bip32
-import bitcoin
 import logging
 import os
 import random
 
-from bitcoin.wallet import CBitcoinSecret
 from ephemeral_port_reserve import reserve
 from nacl.public import PrivateKey as Curve25519Private
 from test_framework import serializations
+from test_framework.bitcoind import BitcoindRpcProxy
 from test_framework.coordinatord import Coordinatord
 from test_framework.cosignerd import Cosignerd
+from test_framework.miradord import Miradord
 from test_framework.revaultd import ManagerRevaultd, StakeholderRevaultd, StkManRevaultd
 from test_framework.utils import (
     get_descriptors,
     get_participants,
     wait_for,
-    RpcError,
     TIMEOUT,
+    WT_PLUGINS_DIR,
 )
 
 
@@ -28,9 +28,6 @@ class RevaultNetwork:
         root_dir,
         bitcoind,
         executor,
-        revaultd_path,
-        coordinatord_path,
-        cosignerd_path,
         postgres_user,
         postgres_pass,
         postgres_host="localhost",
@@ -38,10 +35,6 @@ class RevaultNetwork:
         self.root_dir = root_dir
         self.bitcoind = bitcoind
         self.daemons = []
-
-        self.revaultd_path = revaultd_path
-        self.cosignerd_path = cosignerd_path
-        self.coordinatord_path = coordinatord_path
 
         self.executor = executor
 
@@ -57,6 +50,8 @@ class RevaultNetwork:
         self.csv = None
         self.emergency_address = None
 
+        self.bitcoind_proxy = None
+
     def deploy(
         self,
         n_stakeholders,
@@ -64,6 +59,10 @@ class RevaultNetwork:
         n_stkmanagers=0,
         csv=None,
         managers_threshold=None,
+        with_cosigs=True,
+        with_watchtowers=True,
+        with_cpfp=True,
+        bitcoind_rpc_mocks=[],
     ):
         """
         Deploy a revault setup with {n_stakeholders} stakeholders, {n_managers}
@@ -78,6 +77,17 @@ class RevaultNetwork:
         assert n_managers + n_stkmanagers >= 1, "Not enough managers"
         assert managers_threshold <= n_managers + n_stkmanagers, "Invalid threshold"
 
+        # Connection info to bitcoind. Change the port depending on whether we are proxying
+        # the daemons' requests.
+        bitcoind_cookie = os.path.join(self.bitcoind.bitcoin_dir, "regtest", ".cookie")
+        if len(bitcoind_rpc_mocks) > 0:
+            self.bitcoind_proxy = BitcoindRpcProxy(
+                self.bitcoind.rpcport, bitcoind_cookie, bitcoind_rpc_mocks
+            )
+            bitcoind_rpcport = self.bitcoind_proxy.rpcport
+        else:
+            bitcoind_rpcport = self.bitcoind.rpcport
+
         (
             stkonly_keychains,
             stkonly_cosig_keychains,
@@ -85,7 +95,7 @@ class RevaultNetwork:
             stkman_stk_keychains,
             stkman_cosig_keychains,
             stkman_man_keychains,
-        ) = get_participants(n_stakeholders, n_managers, n_stkmanagers)
+        ) = get_participants(n_stakeholders, n_managers, n_stkmanagers, with_cosigs)
         stks_keychains = stkonly_keychains + stkman_stk_keychains
         cosigs_keychains = stkonly_cosig_keychains + stkman_cosig_keychains
         mans_keychains = manonly_keychains + stkman_man_keychains
@@ -95,11 +105,15 @@ class RevaultNetwork:
             csv = random.randint(1, 26784)
         self.csv = csv
 
-        # TODO: implement CPFP
-        cpfp_xpubs = [
-            bip32.BIP32.from_seed(os.urandom(32), network="test").get_master_xpub()
-            for _ in range(len(mans_keychains))
+        man_cpfp_privs = [
+            bip32.BIP32.from_seed(os.urandom(32), network="test")
+            for _ in range(len(manonly_keychains))
         ]
+        stkman_cpfp_privs = [
+            bip32.BIP32.from_seed(os.urandom(32), network="test")
+            for _ in range(len(stkman_man_keychains))
+        ]
+        cpfp_xpubs = [c.get_xpub() for c in man_cpfp_privs + stkman_cpfp_privs]
         stks_xpubs = [stk.get_xpub() for stk in stks_keychains]
         cosigs_keys = [cosig.get_static_key().hex() for cosig in cosigs_keychains]
         mans_xpubs = [man.get_xpub() for man in mans_keychains]
@@ -107,10 +121,8 @@ class RevaultNetwork:
             stks_xpubs, cosigs_keys, mans_xpubs, managers_threshold, cpfp_xpubs, csv
         )
         # Generate a dummy 2of2 to be used as our Emergency address
-        bitcoin.SelectParams("regtest")
-        pka = str(CBitcoinSecret.from_secret_bytes(os.urandom(32)))
-        pkb = str(CBitcoinSecret.from_secret_bytes(os.urandom(32)))
-        desc = f"wsh(multi(2,{pka},{pkb}))"
+        desc = "wsh(multi(2,cRE7qAArQYnFQK7S1gXFTArFT4UWvh8J2v2EUajRWXbWFvRzxoeF,\
+                cTzcgRCmHNqUqZuZgvCPLUDXXrQSoVQpZiXQZWQzsLEytcTr6iXi))"
         checksum = self.bitcoind.rpc.getdescriptorinfo(desc)["checksum"]
         desc = f"{desc}#{checksum}"
         self.emergency_address = self.bitcoind.rpc.deriveaddresses(desc)[0]
@@ -146,10 +158,11 @@ class RevaultNetwork:
             stkonly_noisepubs.append(
                 bytes(Curve25519Private(stkonly_noiseprivs[i]).public_key)
             )
-            stkonly_cosig_noiseprivs.append(os.urandom(32))
-            stkonly_cosig_noisepubs.append(
-                bytes(Curve25519Private(stkonly_cosig_noiseprivs[i]).public_key)
-            )
+            if with_cosigs:
+                stkonly_cosig_noiseprivs.append(os.urandom(32))
+                stkonly_cosig_noisepubs.append(
+                    bytes(Curve25519Private(stkonly_cosig_noiseprivs[i]).public_key)
+                )
             # Unused yet
             stkonly_wt_noiseprivs.append(os.urandom(32))
             stkonly_wt_noisepubs.append(
@@ -164,10 +177,11 @@ class RevaultNetwork:
             stkman_noisepubs.append(
                 bytes(Curve25519Private(stkman_noiseprivs[i]).public_key)
             )
-            stkman_cosig_noiseprivs.append(os.urandom(32))
-            stkman_cosig_noisepubs.append(
-                bytes(Curve25519Private(stkman_cosig_noiseprivs[i]).public_key)
-            )
+            if with_cosigs:
+                stkman_cosig_noiseprivs.append(os.urandom(32))
+                stkman_cosig_noisepubs.append(
+                    bytes(Curve25519Private(stkman_cosig_noiseprivs[i]).public_key)
+                )
             # Unused yet
             stkman_wt_noiseprivs.append(os.urandom(32))
             stkman_wt_noisepubs.append(
@@ -190,7 +204,6 @@ class RevaultNetwork:
         coord_datadir = os.path.join(self.root_dir, "coordinatord")
         os.makedirs(coord_datadir, exist_ok=True)
         coordinatord = Coordinatord(
-            self.coordinatord_path,
             coord_datadir,
             coordinator_noisepriv,
             man_noisepubs + stkman_noisepubs,
@@ -222,25 +235,54 @@ class RevaultNetwork:
                 }
             )
 
+        # Start daemons in parallel, as it takes a few seconds for each
+        start_jobs = []
+        # By default the watchtower should not revault anything
+        default_wt_plugin = {
+            "path": os.path.join(WT_PLUGINS_DIR, "revault_nothing.py"),
+            "conf": {},
+        }
+
         # Spin up the stakeholders wallets and their cosigning servers
         for i, stk in enumerate(stkonly_keychains):
+            if with_watchtowers:
+                datadir = os.path.join(self.root_dir, f"miradord-{i}")
+                os.makedirs(datadir)
+                wt_listen_port = reserve()
+                miradord = Miradord(
+                    datadir,
+                    deposit_desc,
+                    unvault_desc,
+                    cpfp_desc,
+                    self.emergency_address,
+                    wt_listen_port,
+                    stkonly_wt_noiseprivs[i],
+                    stkonly_noisepubs[i].hex(),
+                    coordinator_noisepub.hex(),
+                    self.coordinator_port,
+                    bitcoind_rpcport,
+                    bitcoind_cookie,
+                    plugins=[default_wt_plugin],
+                )
+                start_jobs.append(self.executor.submit(miradord.start))
+                self.daemons.append(miradord)
+
             datadir = os.path.join(self.root_dir, f"revaultd-stk-{i}")
             os.makedirs(datadir, exist_ok=True)
-
             stk_config = {
                 "keychain": stk,
-                # FIXME: Eventually use real ones
                 "watchtowers": [
                     {
-                        "host": "127.0.0.1:1",
-                        "noise_key": os.urandom(32),
+                        "host": f"127.0.0.1:{wt_listen_port}",
+                        "noise_key": stkonly_wt_noisepubs[i].hex(),
                     }
-                ],
+                ]
+                if with_watchtowers
+                else [],
                 "emergency_address": self.emergency_address,
             }
 
             revaultd = StakeholderRevaultd(
-                self.revaultd_path,
                 datadir,
                 deposit_desc,
                 unvault_desc,
@@ -248,40 +290,64 @@ class RevaultNetwork:
                 stkonly_noiseprivs[i],
                 coordinator_noisepub.hex(),
                 self.coordinator_port,
-                self.bitcoind,
+                bitcoind_rpcport,
+                bitcoind_cookie,
                 stk_config,
+                wt_process=miradord if with_watchtowers else None,
             )
-            revaultd.start()
+            start_jobs.append(self.executor.submit(revaultd.start))
             self.stk_wallets.append(revaultd)
 
-            datadir = os.path.join(self.root_dir, f"cosignerd-stk-{i}")
-            os.makedirs(datadir, exist_ok=True)
+            if with_cosigs:
+                datadir = os.path.join(self.root_dir, f"cosignerd-stk-{i}")
+                os.makedirs(datadir, exist_ok=True)
 
-            cosignerd = Cosignerd(
-                self.cosignerd_path,
-                datadir,
-                stkonly_cosig_noiseprivs[i],
-                stkonly_cosig_keychains[i].get_bitcoin_priv(),
-                stkonly_cosigners_ports[i],
-                man_noisepubs + stkman_noisepubs,
-            )
-            cosignerd.start()
-            self.daemons.append(cosignerd)
+                cosignerd = Cosignerd(
+                    datadir,
+                    stkonly_cosig_noiseprivs[i],
+                    stkonly_cosig_keychains[i].get_bitcoin_priv(),
+                    stkonly_cosigners_ports[i],
+                    man_noisepubs + stkman_noisepubs,
+                )
+                start_jobs.append(self.executor.submit(cosignerd.start))
+                self.daemons.append(cosignerd)
 
         # Spin up the stakeholder-managers wallets and their cosigning servers
         for i, stkman in enumerate(stkman_stk_keychains):
+            if with_watchtowers:
+                datadir = os.path.join(self.root_dir, f"miradord-stkman-{i}")
+                os.makedirs(datadir)
+                wt_listen_port = reserve()
+                miradord = Miradord(
+                    datadir,
+                    deposit_desc,
+                    unvault_desc,
+                    cpfp_desc,
+                    self.emergency_address,
+                    wt_listen_port,
+                    stkman_wt_noiseprivs[i],
+                    stkman_noisepubs[i].hex(),
+                    coordinator_noisepub.hex(),
+                    self.coordinator_port,
+                    bitcoind_rpcport,
+                    bitcoind_cookie,
+                    plugins=[default_wt_plugin],
+                )
+                start_jobs.append(self.executor.submit(miradord.start))
+                self.daemons.append(miradord)
+
             datadir = os.path.join(self.root_dir, f"revaultd-stkman-{i}")
             os.makedirs(datadir, exist_ok=True)
-
             stk_config = {
                 "keychain": stkman,
-                # FIXME: Eventually use real ones
                 "watchtowers": [
                     {
-                        "host": "127.0.0.1:1",
-                        "noise_key": os.urandom(32),
+                        "host": f"127.0.0.1:{wt_listen_port}",
+                        "noise_key": stkman_wt_noisepubs[i].hex(),
                     }
-                ],
+                ]
+                if with_watchtowers
+                else [],
                 "emergency_address": self.emergency_address,
             }
             man_config = {
@@ -290,7 +356,6 @@ class RevaultNetwork:
             }
 
             revaultd = StkManRevaultd(
-                self.revaultd_path,
                 datadir,
                 deposit_desc,
                 unvault_desc,
@@ -298,26 +363,29 @@ class RevaultNetwork:
                 stkman_noiseprivs[i],
                 coordinator_noisepub.hex(),
                 self.coordinator_port,
-                self.bitcoind,
+                bitcoind_rpcport,
+                bitcoind_cookie,
                 stk_config,
                 man_config,
+                wt_process=miradord if with_watchtowers else None,
+                cpfp_priv=stkman_cpfp_privs[i].get_xpriv_bytes() if with_cpfp else None,
             )
-            revaultd.start()
+            start_jobs.append(self.executor.submit(revaultd.start))
             self.stkman_wallets.append(revaultd)
 
-            datadir = os.path.join(self.root_dir, f"cosignerd-stkman-{i}")
-            os.makedirs(datadir, exist_ok=True)
+            if with_cosigs:
+                datadir = os.path.join(self.root_dir, f"cosignerd-stkman-{i}")
+                os.makedirs(datadir, exist_ok=True)
 
-            cosignerd = Cosignerd(
-                self.cosignerd_path,
-                datadir,
-                stkman_cosig_noiseprivs[i],
-                stkman_cosig_keychains[i].get_bitcoin_priv(),
-                stkman_cosigners_ports[i],
-                man_noisepubs + stkman_noisepubs,
-            )
-            cosignerd.start()
-            self.daemons.append(cosignerd)
+                cosignerd = Cosignerd(
+                    datadir,
+                    stkman_cosig_noiseprivs[i],
+                    stkman_cosig_keychains[i].get_bitcoin_priv(),
+                    stkman_cosigners_ports[i],
+                    man_noisepubs + stkman_noisepubs,
+                )
+                start_jobs.append(self.executor.submit(cosignerd.start))
+                self.daemons.append(cosignerd)
 
         # Spin up the managers (only) wallets
         for i, man in enumerate(manonly_keychains):
@@ -326,7 +394,6 @@ class RevaultNetwork:
 
             man_config = {"keychain": man, "cosigners": cosigners_info}
             daemon = ManagerRevaultd(
-                self.revaultd_path,
                 datadir,
                 deposit_desc,
                 unvault_desc,
@@ -334,11 +401,16 @@ class RevaultNetwork:
                 man_noiseprivs[i],
                 coordinator_noisepub.hex(),
                 self.coordinator_port,
-                self.bitcoind,
+                bitcoind_rpcport,
+                bitcoind_cookie,
                 man_config,
+                man_cpfp_privs[i].get_xpriv_bytes() if with_cpfp else None,
             )
-            daemon.start()
+            start_jobs.append(self.executor.submit(daemon.start))
             self.man_wallets.append(daemon)
+
+        for j in start_jobs:
+            j.result(TIMEOUT)
 
         self.daemons += self.stk_wallets + self.stkman_wallets + self.man_wallets
 
@@ -416,11 +488,13 @@ class RevaultNetwork:
 
         txid = self.bitcoind.rpc.sendmany("", amounts_sendmany)
         man.wait_for_logs(
-            [f"Got a new unconfirmed deposit at {txid}" for _ in range(len(amounts))]
+            [f"Got a new unconfirmed deposit at {txid}" for _ in range(len(amounts))],
+            timeout=TIMEOUT * max(1, len(amounts) / 10),
         )
         self.bitcoind.generate_block(6, wait_for_mempool=txid)
         man.wait_for_logs(
-            [f"Vault at {txid}.* is now confirmed" for _ in range(len(amounts))]
+            [f"Vault at {txid}.* is now confirmed" for _ in range(len(amounts))],
+            timeout=TIMEOUT * max(1, len(amounts) / 10),
         )
 
         # Return the vaults we created
@@ -485,10 +559,11 @@ class RevaultNetwork:
         for j in act_jobs:
             j.result(TIMEOUT)
 
-    def unvault_vaults(self, vaults, destinations, feerate):
+    def broadcast_unvaults(self, vaults, destinations, feerate, priority=False):
         """
-        Unvault these {vaults}, advertizing a Spend tx spending to these {destinations}
-        (mapping of addresses to amounts)
+        Broadcast the Unvault transactions for these {vaults}, advertizing a
+        Spend tx spending to these {destinations} (mapping of addresses to
+        amounts)
         """
         man = self.man(0)
         deposits = []
@@ -506,16 +581,25 @@ class RevaultNetwork:
         spend_psbt = serializations.PSBT()
         spend_psbt.deserialize(spend_tx)
         spend_psbt.tx.calc_sha256()
-        man.rpc.setspendtx(spend_psbt.tx.hash)
+        man.rpc.setspendtx(spend_psbt.tx.hash, priority)
+        return spend_psbt
 
+    def unvault_vaults(self, vaults, destinations, feerate, priority=False):
+        """
+        Unvault these {vaults}, advertizing a Spend tx spending to these {destinations}
+        (mapping of addresses to amounts)
+        """
+        spend_psbt = self.broadcast_unvaults(vaults, destinations, feerate, priority)
+        deposits = [f"{v['txid']}:{v['vout']}" for v in vaults]
         self.bitcoind.generate_block(1, wait_for_mempool=len(deposits))
         for w in self.participants():
             wait_for(
                 lambda: len(w.rpc.listvaults(["unvaulted"], deposits)["vaults"])
                 == len(deposits)
             )
+        return spend_psbt
 
-    def spend_vaults_unconfirmed(self, vaults, destinations, feerate):
+    def spend_vaults_unconfirmed(self, vaults, destinations, feerate, priority=False):
         """
         Spend these {vaults} to these {destinations} (mapping of addresses to amounts), not
         confirming the Spend transaction.
@@ -524,6 +608,7 @@ class RevaultNetwork:
 
         :return: the list of spent deposits along with the Spend PSBT.
         """
+        assert len(vaults) > 0
         man = self.man(0)
         deposits = []
         deriv_indexes = []
@@ -542,7 +627,7 @@ class RevaultNetwork:
         spend_psbt = serializations.PSBT()
         spend_psbt.deserialize(spend_tx)
         spend_psbt.tx.calc_sha256()
-        man.rpc.setspendtx(spend_psbt.tx.hash)
+        man.rpc.setspendtx(spend_psbt.tx.hash, priority)
 
         self.bitcoind.generate_block(1, wait_for_mempool=len(deposits))
         self.bitcoind.generate_block(self.csv)
@@ -556,7 +641,7 @@ class RevaultNetwork:
 
         return deposits, spend_psbt
 
-    def spend_vaults(self, vaults, destinations, feerate):
+    def spend_vaults(self, vaults, destinations, feerate, priority=False):
         """
         Spend these {vaults} to these {destinations} (mapping of addresses to amounts).
         Make sure to call this only with revault deployment with a low (<500) CSV, or you'll encounter
@@ -565,7 +650,7 @@ class RevaultNetwork:
         :return: the list of spent deposits along with the Spend PSBT.
         """
         deposits, spend_psbt = self.spend_vaults_unconfirmed(
-            vaults, destinations, feerate
+            vaults, destinations, feerate, priority
         )
 
         self.bitcoind.generate_block(1, wait_for_mempool=[spend_psbt.tx.hash])
@@ -583,26 +668,34 @@ class RevaultNetwork:
         fees = self.compute_spendtx_fees(feerate, len(vaults), 1)
         return {addr: total_spent - fees}, feerate
 
-    def unvault_vaults_anyhow(self, vaults):
+    def unvault_vaults_anyhow(self, vaults, priority=False):
         """
         Unvault these vaults with a random Spend transaction for a maximum amount and a
         fixed feerate.
         """
         destinations, feerate = self._any_spend_data(vaults)
-        return self.unvault_vaults(vaults, destinations, feerate)
+        return self.unvault_vaults(vaults, destinations, feerate, priority)
+
+    def broadcast_unvaults_anyhow(self, vaults, priority=False):
+        """
+        Broadcast the Unvault transactions for these vaults with a random Spend
+        transaction for a maximum amount and a fixed feerate.
+        """
+        destinations, feerate = self._any_spend_data(vaults)
+        return self.broadcast_unvaults(vaults, destinations, feerate, priority)
 
     def spend_vaults_anyhow(self, vaults):
         """Spend these vaults to a random address for a maximum amount for a fixed feerate"""
         destinations, feerate = self._any_spend_data(vaults)
         return self.spend_vaults(vaults, destinations, feerate)
 
-    def spend_vaults_anyhow_unconfirmed(self, vaults):
+    def spend_vaults_anyhow_unconfirmed(self, vaults, priority=False):
         """
         Spend these vaults to a random address for a maximum amount for a fixed feerate,
         not confirming the Spend transaction.
         """
         destinations, feerate = self._any_spend_data(vaults)
-        return self.spend_vaults_unconfirmed(vaults, destinations, feerate)
+        return self.spend_vaults_unconfirmed(vaults, destinations, feerate, priority)
 
     def compute_spendtx_fees(
         self, spendtx_feerate, n_vaults_spent, n_destinations, with_change=False
@@ -673,3 +766,5 @@ class RevaultNetwork:
     def cleanup(self):
         for n in self.daemons:
             n.cleanup()
+        if self.bitcoind_proxy is not None:
+            self.bitcoind_proxy.stop()
