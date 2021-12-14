@@ -127,7 +127,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
         logging.error("I need the Postgres environment variable to be set.")
         print("Example:")
         print(
-            f'  POSTGRES_USER="revault_test" POSTGRES_PASS="revault_test" {sys.argv[0]}'
+            f'  POSTGRES_USER="revault" POSTGRES_PASS="revault" {sys.argv[0]}'
         )
         sys.exit(1)
 
