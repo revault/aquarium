@@ -37,6 +37,7 @@ COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "master")
 REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "master")
 REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "gethistory")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
+WITH_ALL_HWS = os.getenv("WITH_ALL_HWS", "0") == "1"
 
 
 # FIXME: use tmp
@@ -275,9 +276,10 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None, with_cosigs=False):
                     f.write(
                         f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'\n"
                     )
-                    f.write(
-                        f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.hd.get_xpriv()}'\n"
-                    )
+                    if WITH_ALL_HWS:
+                        f.write(
+                            f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.hd.get_xpriv()}'\n"
+                        )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
                 f.write(f'alias man{i}d="{REVAULTD_PATH} --conf {man.conf_file}"\n')
@@ -285,9 +287,10 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None, with_cosigs=False):
                     f.write(
                         f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'\n"
                     )
-                    f.write(
-                        f"alias man{i}hw='{dummysigner} {man.man_keychain.hd.get_xpriv()}'\n"
-                    )
+                    if WITH_ALL_HWS:
+                        f.write(
+                            f"alias man{i}hw='{dummysigner} {man.man_keychain.hd.get_xpriv()}'\n"
+                        )
             for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
                     f'alias stkman{i}cli="{revault_cli} --conf {stkman.conf_file}"\n'
@@ -299,12 +302,13 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None, with_cosigs=False):
                     f.write(
                         f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'\n"
                     )
-                    f.write(
-                        f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.hd.get_xpriv()}'\n"
-                    )
-                    f.write(
-                        f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.hd.get_xpriv()}'\n"
-                    )
+                    if WITH_ALL_HWS:
+                        f.write(
+                            f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.hd.get_xpriv()}'\n"
+                        )
+                        f.write(
+                            f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.hd.get_xpriv()}'\n"
+                        )
             # hw for all the keys.
             if WITH_GUI:
                 f.write(f"alias hw='{dummysigner} --conf {dummysigner_conf_file}'\n")
