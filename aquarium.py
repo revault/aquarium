@@ -72,7 +72,7 @@ def build_src(src_dir, version, git_url):
     )
 
 
-def build_all_binaries():
+def build_all_binaries(build_cosig):
     logging.info(
         f"Building coordinatord at '{COORDINATORD_VERSION}' in '{COORDINATORD_SRC_DIR}'"
     )
@@ -82,12 +82,13 @@ def build_all_binaries():
         "https://github.com/revault/coordinatord",
     )
 
-    logging.info(
-        f"Building cosignerd at '{COSIGNERD_VERSION}' in '{COSIGNERD_SRC_DIR}'"
-    )
-    build_src(
-        COSIGNERD_SRC_DIR, COSIGNERD_VERSION, "https://github.com/revault/cosignerd"
-    )
+    if build_cosig:
+        logging.info(
+            f"Building cosignerd at '{COSIGNERD_VERSION}' in '{COSIGNERD_SRC_DIR}'"
+        )
+        build_src(
+            COSIGNERD_SRC_DIR, COSIGNERD_VERSION, "https://github.com/revault/cosignerd"
+        )
 
     logging.info(f"Building cosignerd at '{REVAULTD_VERSION}' in '{REVAULTD_SRC_DIR}'")
     build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION, "https://github.com/revault/revaultd")
@@ -129,7 +130,7 @@ def bitcoind():
     return bitcoind
 
 
-def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
+def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None, with_cosigs=False):
     if not POSTGRES_IS_SETUP:
         logging.error("I need the Postgres environment variable to be set.")
         print("Example:")
@@ -168,7 +169,7 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             sys.exit(1)
 
     logging.info("Checking the source directories..")
-    build_all_binaries()
+    build_all_binaries(with_cosigs)
 
     logging.info("Setting up bitcoind")
     bd = bitcoind()
@@ -198,7 +199,15 @@ def deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh=None):
             POSTGRES_PASS,
             POSTGRES_HOST,
         )
-        rn.deploy(n_stks, n_mans, n_stkmans, csv, mans_thresh, with_watchtowers=False)
+        rn.deploy(
+            n_stks,
+            n_mans,
+            n_stkmans,
+            csv,
+            mans_thresh,
+            with_watchtowers=False,
+            with_cosigs=with_cosigs,
+        )
 
         # We use a hack to avoid having to modify the test_framework to include the GUI.
         if WITH_GUI:
@@ -345,6 +354,12 @@ def parse_args():
         "--managers-threshold",
         type=int,
     )
+    deploy_config.add_argument(
+        "-cosigs",
+        "--with-cosigning-servers",
+        action="store_true",
+        help="Enable cosigning servers to allow Spend policies at the cost of weaker assumptions",
+    )
     return parser.parse_args()
 
 
@@ -358,4 +373,5 @@ if __name__ == "__main__":
         args.stakeholder_managers,
         args.timelock,
         args.managers_threshold,
+        args.with_cosigning_servers,
     )
