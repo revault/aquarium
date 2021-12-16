@@ -112,7 +112,7 @@ def build_all_binaries(build_cosig, build_wt):
         build_src(
             REVAULT_GUI_SRC_DIR,
             REVAULT_GUI_VERSION,
-            "https://github.com/edouardparis/revault-gui",
+            "https://github.com/revault/revault-gui",
         )
 
         logging.info("Building revault-gui's dummysigner")
