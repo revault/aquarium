@@ -21,7 +21,6 @@ from test_framework.utils import (
     EXECUTOR_WORKERS,
     LOG_LEVEL,
     DEBUG_GUI,
-    REVAULTD_PATH,
 )
 
 
@@ -273,7 +272,7 @@ def deploy(
                 )
                 with open(p.gui_conf_file, "w") as f:
                     f.write(f"revaultd_config_path = '{p.conf_file}'\n")
-                    f.write(f"revaultd_path = '{REVAULTD_PATH}'\n")
+                    f.write(f"revaultd_path = '{test_framework.revaultd.REVAULTD_PATH}'\n")
                     f.write(f"log_level = '{LOG_LEVEL}'\n")
                     f.write(f"debug = {'true' if DEBUG_GUI else 'false'}")
             revault_gui = os.path.join(
@@ -299,7 +298,7 @@ def deploy(
             )
             for i, stk in enumerate(rn.stk_wallets):
                 f.write(f'alias stk{i}cli="{revault_cli} --conf {stk.conf_file}"\n')
-                f.write(f'alias stk{i}d="{REVAULTD_PATH} --conf {stk.conf_file}"\n')
+                f.write(f'alias stk{i}d="{test_framework.revaultd.REVAULTD_PATH} --conf {stk.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
                         f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'\n"
@@ -310,7 +309,7 @@ def deploy(
                         )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
-                f.write(f'alias man{i}d="{REVAULTD_PATH} --conf {man.conf_file}"\n')
+                f.write(f'alias man{i}d="{test_framework.revaultd.REVAULTD_PATH} --conf {man.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
                         f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'\n"
@@ -324,7 +323,7 @@ def deploy(
                     f'alias stkman{i}cli="{revault_cli} --conf {stkman.conf_file}"\n'
                 )
                 f.write(
-                    f'alias stkman{i}d="{REVAULTD_PATH} --conf {stkman.conf_file}"\n'
+                    f'alias stkman{i}d="{test_framework.revaultd.REVAULTD_PATH} --conf {stkman.conf_file}"\n'
                 )
                 if WITH_GUI:
                     f.write(
@@ -428,7 +427,9 @@ def parse_args():
         action="append",
         default=[],
         dest="policies",
-        help="Enforce a spending policy on all watchtowers by specifying a path to a watchtower plugin",
+        help="Enforce a spending policy on all watchtowers by specifying a path to a "
+             "watchtower plugin. Specify this option multiple times to enable multiple "
+             "policies.",
     )
     return parser.parse_args()
 
