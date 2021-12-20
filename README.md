@@ -5,7 +5,7 @@ A Revault sandbox
 ## About
 
 Being a complete custody solution, configuring all the parts of a Revault deployment is a bit
-tedious. Aquarium is a Python script re-using the [`revaultd`](https://github.com/revault/revaultd)
+tedious. Aquarium is a Python script re-using [`revaultd`](https://github.com/revault/revaultd)'s
 functional testing framework to provide a turnkey solution to deploy a Revault setup on a regtest
 network.
 
@@ -16,7 +16,7 @@ into the [`test_framework`](`test_framework/`) to write all the configuration (B
 communication keys, script descriptors, connections, ..) and finally drop you in a shell with
 pre-defined `alias`es.
 
-The aquarium only runs on Unix system for now.
+The aquarium only runs on Unix systems for now.
 
 ## Usage
 
@@ -28,8 +28,13 @@ cd aquarium
 
 ### Dependencies
 
-First of all, the testing framework has a few dependencies (for key generation, DB connection and
-bitcoind RPC specifically). The recommended method for installing them is by using a [`venv`](https://docs.python.org/3/library/venv.html).
+If you don't already have `bitcoind` installed, you can get it from [bitcoincore.org](https://bitcoincore.org/en/download/)
+or compile it from [the source](https://github.com/bitcoin/bitcoin/tree/master/doc#bitcoin-core).
+The minimum supported version is `22.0`. You'll need to have an accessible `bitcoind` via your
+environment or to set the `BITCOIND_PATH` variable.
+
+The testing framework has a few dependencies (for key generation, DB connection and bitcoind RPC
+mocking specifically). The recommended method for installing them is by using a [`venv`](https://docs.python.org/3/library/venv.html).
 ```
 python3 -m venv venv
 . venv/bin/activate
@@ -46,18 +51,12 @@ can check your version with:
 cargo --version
 ```
 
-Finally, the GUI has a few dependencies:
-- [`pkg-config`](https://www.freedesktop.org/wiki/Software/pkg-config/) (On Debian/Ubuntu `apt install pkg-config`)
-- [`libxkbcommon`](https://xkbcommon.org/) for the dummy signer (On Debian/Ubuntu `apt install libxkbcommon-dev`)
-- `libelf` (On Debian/Ubuntu `apt install libelf-dev`)
-- [`fontconfig`](https://www.freedesktop.org/wiki/Software/fontconfig/) (On Debian/Ubuntu `apt install libfontconfig1-dev`)
-- [Vulkan Loader](https://github.com/KhronosGroup/Vulkan-Loader) (On Debian/Ubuntu `apt install libvulkan-dev`)
+Finally, the GUI has a [few dependencies](https://github.com/revault/revault-gui#dependencies).
 
 ### Running
 
 The testing framework will spin up the Coordinator, which needs access to a Postgre backend. The
-easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/) (don't
-forget to add your user to the Docker group!):
+easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/):
 ```
 docker run --rm -d -p 5432:5432 --name postgres-coordinatord -e POSTGRES_PASSWORD=revault -e POSTGRES_USER=revault -e POSTGRES_DB=coordinator_db postgres:alpine
 ```
