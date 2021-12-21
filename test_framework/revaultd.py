@@ -62,6 +62,7 @@ class Revaultd(TailableProc):
             f.write(f"data_dir = '{datadir}'\n")
             f.write("daemon = false\n")
             f.write(f"log_level = '{LOG_LEVEL}'\n")
+            f.write(f"min_conf = 1\n")
 
             f.write(f'coordinator_host = "127.0.0.1:{coordinator_port}"\n')
             f.write(f'coordinator_noise_key = "{coordinator_noise_key}"\n')
