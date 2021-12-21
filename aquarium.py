@@ -68,7 +68,7 @@ def build_src(src_dir, version, git_url):
             os.makedirs(SRC_DIR)
         subprocess.check_call(["git", "-C", f"{SRC_DIR}", "clone", git_url])
 
-    subprocess.check_call(["git", "-C", f"{src_dir}", "fetch", "origin", version])
+    subprocess.check_call(["git", "-C", f"{src_dir}", "fetch", "origin"])
     subprocess.check_call(["git", "-C", f"{src_dir}", "checkout", f"{version}"])
     subprocess.check_call(
         ["cargo", "build", "--manifest-path", f"{src_dir}/Cargo.toml"]
