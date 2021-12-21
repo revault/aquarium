@@ -15,7 +15,6 @@ import subprocess
 import threading
 import time
 
-from ephemeral_port_reserve import reserve
 from test_framework import serializations
 from typing import Optional
 
@@ -28,8 +27,42 @@ POSTGRES_PASS = os.getenv("POSTGRES_PASS", "")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_IS_SETUP = POSTGRES_USER and POSTGRES_PASS and POSTGRES_HOST
 VERBOSE = os.getenv("VERBOSE", "0") == "1"
-LOG_LEVEL = os.getenv("LOG_LEVEL", "trace")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "debug")
 assert LOG_LEVEL in ["trace", "debug", "info", "warn", "error"]
+DEFAULT_REV_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "target/debug/revaultd"
+)
+REVAULTD_PATH = os.getenv("REVAULTD_PATH", DEFAULT_REV_PATH)
+DEFAULT_MIRADORD_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "servers",
+    "miradord",
+    "target/debug/miradord",
+)
+MIRADORD_PATH = os.getenv("MIRADORD_PATH", DEFAULT_MIRADORD_PATH)
+DEFAULT_COORD_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "servers",
+    "coordinatord",
+    "target/debug/coordinatord",
+)
+COORDINATORD_PATH = os.getenv("COORDINATORD_PATH", DEFAULT_COORD_PATH)
+DEFAULT_COSIG_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "servers",
+    "cosignerd",
+    "target/debug/cosignerd",
+)
+COSIGNERD_PATH = os.getenv("COSIGNERD_PATH", DEFAULT_COSIG_PATH)
+DEFAULT_BITCOIND_PATH = "bitcoind"
+BITCOIND_PATH = os.getenv("BITCOIND_PATH", DEFAULT_BITCOIND_PATH)
+WT_PLUGINS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wtplugins")
+
+
+COIN = 10 ** 8
 
 
 def wait_for(success, timeout=TIMEOUT, debug_fn=None):
@@ -66,7 +99,7 @@ class RpcError(ValueError):
 
 class Participant:
     def __init__(self):
-        self.hd = bip32.BIP32.from_seed(os.urandom(32))
+        self.hd = bip32.BIP32.from_seed(os.urandom(32), network="test")
 
 
 class User(Participant):
@@ -74,10 +107,7 @@ class User(Participant):
         super(User, self).__init__()
 
     def get_xpub(self):
-        return self.hd.get_master_xpub()
-
-    def get_xpriv(self):
-        return self.hd.get_master_xpriv()
+        return self.hd.get_xpub()
 
     def sign_revocation_psbt(self, psbt_str, deriv_index):
         """Attach an ACP signature to the PSBT with the key at {deriv_index}"""
@@ -159,14 +189,14 @@ class Cosig(Participant):
         return self.hd.get_privkey_from_path(self.static_key_path)
 
 
-def get_participants(n_stk, n_man, n_stkman=0):
+def get_participants(n_stk, n_man, n_stkman=0, with_cosigs=True):
     """Get the configuration entries for each participant."""
     stakeholders = [User() for _ in range(n_stk)]
-    cosigs = [Cosig() for _ in range(n_stk)]
+    cosigs = [Cosig() for _ in range(n_stk)] if with_cosigs else []
     managers = [User() for _ in range(n_man)]
 
     stkman_stk = [User() for _ in range(n_stkman)]
-    stkman_cosig = [Cosig() for _ in range(n_stkman)]
+    stkman_cosig = [Cosig() for _ in range(n_stkman)] if with_cosigs else []
     stkman_man = [User() for _ in range(n_stkman)]
 
     return (
@@ -180,17 +210,22 @@ def get_participants(n_stk, n_man, n_stkman=0):
 
 
 def get_descriptors(stks_xpubs, cosigs_keys, mans_xpubs, mans_thresh, cpfp_xpubs, csv):
+    # aquarium/test_framework/mscompiler/target/debug/mscompiler
     mscompiler_dir = os.path.abspath(
         os.path.join(
             os.path.dirname(__file__),
             "mscompiler",
         )
     )
+    cwd = os.getcwd()
+    os.chdir(mscompiler_dir)
     try:
-        subprocess.check_call(["cargo", "build", "--manifest-path", f"{mscompiler_dir}/Cargo.toml"])
+        subprocess.check_call(["cargo", "build"])
     except subprocess.CalledProcessError as e:
         logging.error(f"Error compiling mscompiler: {str(e)}")
         raise e
+    finally:
+        os.chdir(cwd)
 
     mscompiler_bin = os.path.join(mscompiler_dir, "target", "debug", "mscompiler")
     cmd = [
