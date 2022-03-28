@@ -5,6 +5,7 @@ ephemeral_port_reserve==1.1.1
 bip32~=2.1
 psycopg2-binary==2.9
 pynacl==1.4
+MarkupSafe>=0.23,<2.1.0
 
 # For the bitcoind proxy
 # FIXME: not useful for aquarium
