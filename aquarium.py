@@ -31,7 +31,6 @@ COSIGNERD_SRC_DIR = os.path.join(SRC_DIR, "cosignerd")
 MIRADORD_SRC_DIR = os.path.join(SRC_DIR, "miradord")
 REVAULTD_SRC_DIR = os.path.join(SRC_DIR, "revaultd")
 REVAULT_GUI_SRC_DIR = os.path.join(SRC_DIR, "revault-gui")
-SHELL = os.getenv("SHELL", "bash")
 COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "0.3")
 COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "0.3")
 MIRADORD_VERSION = os.getenv("MIRADORD_VERSION", "0.0.1")
@@ -39,7 +38,10 @@ REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "0.3")
 REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "0.3")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 WITH_ALL_HWS = os.getenv("WITH_ALL_HWS", "0") == "1"
-
+SHELL = os.getenv("SHELL", "/usr/bin/bash")
+# See issue https://github.com/revault/aquarium/issues/33 for details.
+if SHELL.endswith('/zsh'):
+    SHELL="/usr/bin/bash"
 
 # FIXME: use tmp
 def bitcoind_dir():
