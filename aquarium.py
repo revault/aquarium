@@ -75,15 +75,18 @@ def build_src(src_dir, version, git_url):
     )
 
 
-def build_all_binaries(build_cosig, build_wt):
-    logging.info(
-        f"Building coordinatord at '{COORDINATORD_VERSION}' in '{COORDINATORD_SRC_DIR}'"
-    )
-    build_src(
-        COORDINATORD_SRC_DIR,
-        COORDINATORD_VERSION,
-        "https://github.com/revault/coordinatord",
-    )
+def build_all_binaries(build_cosig, build_wt, build_coordinator=True):
+    if build_coordinator:
+        logging.info(
+            f"Building coordinatord at '{COORDINATORD_VERSION}' in '{COORDINATORD_SRC_DIR}'"
+        )
+        build_src(
+            COORDINATORD_SRC_DIR,
+            COORDINATORD_VERSION,
+            "https://github.com/revault/coordinatord",
+        )
+    else:
+        logging.info("Skipping the build of the coordinator, using the dummy one.")
 
     if build_cosig:
         logging.info(
@@ -186,7 +189,7 @@ def deploy(
             sys.exit(1)
 
     logging.info("Checking the source directories..")
-    build_all_binaries(build_cosig=with_cosigs, build_wt=with_wts)
+    build_all_binaries(build_cosig=with_cosigs, build_wt=with_wts, build_coordinator=POSTGRES_IS_SETUP)
 
     logging.info("Setting up bitcoind")
     bd = bitcoind()
