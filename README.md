@@ -44,9 +44,9 @@ pip install -r requirements.txt
 Also, you will need to install [`Cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 which you very likely already have installed if you have a Rust toolchain.
 
-You will need a version of at least `1.43` for building `revaultd`, `coordinatord` and `cosignerd`.
-If you are going to use the GUI, the latest stable version is required to build `revault-gui`. You
-can check your version with:
+You will need a version of at least `1.43` for building `revaultd`, `miradord` and `cosignerd`.
+If you are going to use the GUI or `coordinatord`, the latest stable version is required to build
+both. You can check your version with:
 ```
 cargo --version
 ```
@@ -260,10 +260,11 @@ $ bcli generatetoaddress 1 $(bcli getnewaddress)
 <img src="screenshots/8.png" alt="screenshot" width="80%"/>
 
 
-### Running with `coordinatord`
+### Running with [`coordinatord`](https://github.com/revault/coordinatord)
 
-By default, Aquarium will use a dummy fully in-RAM coordinator. If you are willing to use the "real"
-coordinator, you first need to set up a PostgreSQL backend.
+By default, Aquarium will use a dummy fully in-RAM coordinator. If you are willing to use the
+["real" coordinator](https://github.com/revault/coordinatord), you first need to set up a PostgreSQL
+backend.
 
 The easiest way to do so is by using [Docker](https://docs.docker.com/engine/install/):
 ```
