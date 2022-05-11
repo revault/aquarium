@@ -4,7 +4,7 @@ pytest-timeout==1.3.4
 ephemeral_port_reserve==1.1.1
 bip32~=3.0
 bip380==0.0.3
-psycopg2-binary==2.9
+psycopg2-binary==2.9.3
 pynacl==1.4
 noiseprotocol==0.3.1
 
