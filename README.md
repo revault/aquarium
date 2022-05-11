@@ -260,10 +260,11 @@ $ bcli generatetoaddress 1 $(bcli getnewaddress)
 <img src="screenshots/8.png" alt="screenshot" width="80%"/>
 
 
-### Running with `coordinatord`
+### Running with [`coordinatord`](https://github.com/revault/coordinatord)
 
-By default, Aquarium will use a dummy fully in-RAM coordinator. If you are willing to use the "real"
-coordinator, you first need to set up a PostgreSQL backend.
+By default, Aquarium will use a dummy fully in-RAM coordinator. If you are willing to use the
+["real" coordinator](https://github.com/revault/coordinatord), you first need to set up a PostgreSQL
+backend.
 
 The easiest way to do so is by using [Docker](https://docs.docker.com/engine/install/):
 ```
