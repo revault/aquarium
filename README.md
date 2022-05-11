@@ -44,9 +44,9 @@ pip install -r requirements.txt
 Also, you will need to install [`Cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 which you very likely already have installed if you have a Rust toolchain.
 
-You will need a version of at least `1.43` for building `revaultd`, `coordinatord` and `cosignerd`.
-If you are going to use the GUI, the latest stable version is required to build `revault-gui`. You
-can check your version with:
+You will need a version of at least `1.43` for building `revaultd`, `miradord` and `cosignerd`.
+If you are going to use the GUI or `coordinatord`, the latest stable version is required to build
+both. You can check your version with:
 ```
 cargo --version
 ```
