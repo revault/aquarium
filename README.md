@@ -55,14 +55,6 @@ Finally, the GUI has a [few dependencies](https://github.com/revault/revault-gui
 
 ### Running
 
-The testing framework will spin up the Coordinator, which needs access to a Postgre backend. The
-easiest way to set one up is by using [Docker](https://docs.docker.com/engine/install/):
-```
-docker run --rm -d -p 5432:5432 --name postgres-coordinatord -e POSTGRES_PASSWORD=revault -e POSTGRES_USER=revault -e POSTGRES_DB=coordinator_db postgres:alpine
-```
-If you already have a Postgre backend set up, the script will just need credentials (and optionally
-a `POSTGRES_HOST`) and will take care of creating the database (and removing it at teardown).
-
 To deploy Revault you'll need to specify the number of Stakeholders (participants not taking
 actively part in spendings but pre-signing authorizations of spending), Managers (participants
 taking part in spending using the pre-signed transactions) and Stakeholders-Managers (participants
@@ -99,12 +91,11 @@ Deployment configuration:
                         option multiple times to enable multiple policies.
 ```
 
-Assuming you've set a PostgreSQL backend with credentials `revault:revault` as with the Docker
-example above, and you want to deploy a Revault setup with 1 Stakeholder, 1 Manager and 2
+Assuming you want to deploy a Revault setup with 1 Stakeholder, 1 Manager and 2
 Stakeholder-Managers who can Spend with a threshold of `2` after `6` blocks (and no automated
 spending policy):
 ```
-POSTGRES_USER=revault POSTGRES_PASS=revault ./aquarium.py --stakeholders 1 --managers 1 --stakeholder-managers 2 --timelock 6 --managers-threshold 2
+./aquarium.py --stakeholders 1 --managers 1 --stakeholder-managers 2 --timelock 6 --managers-threshold 2
 ```
 
 You will get into a shell where you can use the `alias`es to start messing around (you can consult
@@ -267,6 +258,27 @@ $ bcli generatetoaddress 1 $(bcli getnewaddress)
 ]
 ```
 <img src="screenshots/8.png" alt="screenshot" width="80%"/>
+
+
+### Running with `coordinatord`
+
+By default, Aquarium will use a dummy fully in-RAM coordinator. If you are willing to use the "real"
+coordinator, you first need to set up a PostgreSQL backend.
+
+The easiest way to do so is by using [Docker](https://docs.docker.com/engine/install/):
+```
+docker run --rm -d -p 5432:5432 --name postgres-coordinatord -e POSTGRES_PASSWORD=revault -e POSTGRES_USER=revault -e POSTGRES_DB=coordinator_db postgres:alpine
+```
+If you already have a Postgre backend set up, the script will just need credentials (and optionally
+a `POSTGRES_HOST`) and will take care of creating the database (and removing it at teardown).
+
+Assuming you've set a PostgreSQL backend with credentials `revault:revault` as with the Docker
+example above, and you want to deploy a Revault setup with 1 Stakeholder, 1 Manager and 2
+Stakeholder-Managers who can Spend with a threshold of `2` after `6` blocks (and no automated
+spending policy):
+```
+POSTGRES_USER=revault POSTGRES_PASS=revault ./aquarium.py --stakeholders 1 --managers 1 --stakeholder-managers 2 --timelock 6 --managers-threshold 2
+```
 
 
 ### Tweaking

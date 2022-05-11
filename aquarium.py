@@ -75,15 +75,18 @@ def build_src(src_dir, version, git_url):
     )
 
 
-def build_all_binaries(build_cosig, build_wt):
-    logging.info(
-        f"Building coordinatord at '{COORDINATORD_VERSION}' in '{COORDINATORD_SRC_DIR}'"
-    )
-    build_src(
-        COORDINATORD_SRC_DIR,
-        COORDINATORD_VERSION,
-        "https://github.com/revault/coordinatord",
-    )
+def build_all_binaries(build_cosig, build_wt, build_coordinator=True):
+    if build_coordinator:
+        logging.info(
+            f"Building coordinatord at '{COORDINATORD_VERSION}' in '{COORDINATORD_SRC_DIR}'"
+        )
+        build_src(
+            COORDINATORD_SRC_DIR,
+            COORDINATORD_VERSION,
+            "https://github.com/revault/coordinatord",
+        )
+    else:
+        logging.info("Skipping the build of the coordinator, using the dummy one.")
 
     if build_cosig:
         logging.info(
@@ -147,12 +150,9 @@ def deploy(
     with_wts = len(policies) > 0
 
     if not POSTGRES_IS_SETUP:
-        logging.error("I need the Postgres environment variable to be set.")
-        print("Example:")
-        print(f'  POSTGRES_USER="revault" POSTGRES_PASS="revault" {sys.argv[0]}')
-        sys.exit(1)
+        logging.info("No Postgre backend given, will use a dummy coordinator")
 
-    if not is_listening(POSTGRES_HOST, 5432):
+    if POSTGRES_IS_SETUP and not is_listening(POSTGRES_HOST, 5432):
         logging.error(f"No Postgre server listening on {POSTGRES_HOST}:5432.")
         print(
             f"A simple way to get started with one given your POSTGRES_PASS and POSTGRES_USER:"
@@ -189,7 +189,7 @@ def deploy(
             sys.exit(1)
 
     logging.info("Checking the source directories..")
-    build_all_binaries(build_cosig=with_cosigs, build_wt=with_wts)
+    build_all_binaries(build_cosig=with_cosigs, build_wt=with_wts, build_coordinator=POSTGRES_IS_SETUP)
 
     logging.info("Setting up bitcoind")
     bd = bitcoind()

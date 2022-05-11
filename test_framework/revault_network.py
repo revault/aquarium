@@ -7,16 +7,18 @@ from ephemeral_port_reserve import reserve
 from nacl.public import PrivateKey as Curve25519Private
 from test_framework import serializations
 from test_framework.bitcoind import BitcoindRpcProxy
-from test_framework.coordinatord import Coordinatord
+from test_framework.coordinatord import Coordinatord, DummyCoordinator
 from test_framework.cosignerd import Cosignerd
 from test_framework.miradord import Miradord
 from test_framework.revaultd import ManagerRevaultd, StakeholderRevaultd, StkManRevaultd
 from test_framework.utils import (
     get_descriptors,
     get_participants,
+    finalize_input,
     wait_for,
     TIMEOUT,
     WT_PLUGINS_DIR,
+    POSTGRES_IS_SETUP,
 )
 
 
@@ -49,9 +51,6 @@ class RevaultNetwork:
 
         self.csv = None
         self.emergency_address = None
-        self.deposit_desc = None
-        self.unvault_desc = None
-        self.cpfp_descriptor = None
 
         self.bitcoind_proxy = None
 
@@ -120,12 +119,9 @@ class RevaultNetwork:
         stks_xpubs = [stk.get_xpub() for stk in stks_keychains]
         cosigs_keys = [cosig.get_static_key().hex() for cosig in cosigs_keychains]
         mans_xpubs = [man.get_xpub() for man in mans_keychains]
-        (deposit_desc, unvault_desc, cpfp_desc) = get_descriptors(
+        (self.deposit_desc, self.unvault_desc, self.cpfp_desc) = get_descriptors(
             stks_xpubs, cosigs_keys, mans_xpubs, managers_threshold, cpfp_xpubs, csv
         )
-        self.deposit_desc = deposit_desc
-        self.unvault_desc = unvault_desc
-        self.cpfp_desc = cpfp_desc
         # Generate a dummy 2of2 to be used as our Emergency address
         desc = "wsh(multi(2,cRE7qAArQYnFQK7S1gXFTArFT4UWvh8J2v2EUajRWXbWFvRzxoeF,\
                 cTzcgRCmHNqUqZuZgvCPLUDXXrQSoVQpZiXQZWQzsLEytcTr6iXi))"
@@ -206,24 +202,38 @@ class RevaultNetwork:
             f"{stkonly_wt_noisepubs + stkman_wt_noisepubs}\n"
         )
 
-        # Spin up the "Sync Server"
-        coord_datadir = os.path.join(self.root_dir, "coordinatord")
-        os.makedirs(coord_datadir, exist_ok=True)
-        coordinatord = Coordinatord(
-            coord_datadir,
-            coordinator_noisepriv,
-            man_noisepubs + stkman_noisepubs,
-            stkonly_noisepubs + stkman_noisepubs,
-            stkonly_wt_noisepubs + stkman_wt_noisepubs,
-            self.coordinator_port,
-            bitcoind_rpcport,
-            bitcoind_cookie,
-            self.postgres_user,
-            self.postgres_pass,
-            self.postgres_host,
-        )
-        coordinatord.start()
-        self.daemons.append(coordinatord)
+        # If they filled information about a Postgre backend, use the real coordinator.
+        # Otherwise use the dummy one.
+        if POSTGRES_IS_SETUP:
+            coord_datadir = os.path.join(self.root_dir, "coordinatord")
+            os.makedirs(coord_datadir, exist_ok=True)
+            coordinatord = Coordinatord(
+                coord_datadir,
+                coordinator_noisepriv,
+                man_noisepubs + stkman_noisepubs,
+                stkonly_noisepubs + stkman_noisepubs,
+                stkonly_wt_noisepubs + stkman_wt_noisepubs,
+                self.coordinator_port,
+                bitcoind_rpcport,
+                bitcoind_cookie,
+                self.postgres_user,
+                self.postgres_pass,
+                self.postgres_host,
+            )
+            coordinatord.start()
+            self.daemons.append(coordinatord)
+        else:
+            coordinator = DummyCoordinator(
+                self.coordinator_port,
+                coordinator_noisepriv,
+                man_noisepubs
+                + stkonly_noisepubs
+                + stkman_noisepubs
+                + stkonly_wt_noisepubs
+                + stkman_wt_noisepubs,
+            )
+            coordinator.start()
+            self.daemons.append(coordinator)
 
         cosigners_info = []
         for (i, noisepub) in enumerate(stkonly_cosig_noisepubs):
@@ -259,9 +269,9 @@ class RevaultNetwork:
                 wt_listen_port = reserve()
                 miradord = Miradord(
                     datadir,
-                    deposit_desc,
-                    unvault_desc,
-                    cpfp_desc,
+                    str(self.deposit_desc),
+                    str(self.unvault_desc),
+                    str(self.cpfp_desc),
                     self.emergency_address,
                     wt_listen_port,
                     stkonly_wt_noiseprivs[i],
@@ -292,9 +302,9 @@ class RevaultNetwork:
 
             revaultd = StakeholderRevaultd(
                 datadir,
-                deposit_desc,
-                unvault_desc,
-                cpfp_desc,
+                str(self.deposit_desc),
+                str(self.unvault_desc),
+                str(self.cpfp_desc),
                 stkonly_noiseprivs[i],
                 coordinator_noisepub.hex(),
                 self.coordinator_port,
@@ -328,9 +338,9 @@ class RevaultNetwork:
                 wt_listen_port = reserve()
                 miradord = Miradord(
                     datadir,
-                    deposit_desc,
-                    unvault_desc,
-                    cpfp_desc,
+                    str(self.deposit_desc),
+                    str(self.unvault_desc),
+                    str(self.cpfp_desc),
                     self.emergency_address,
                     wt_listen_port,
                     stkman_wt_noiseprivs[i],
@@ -365,9 +375,9 @@ class RevaultNetwork:
 
             revaultd = StkManRevaultd(
                 datadir,
-                deposit_desc,
-                unvault_desc,
-                cpfp_desc,
+                str(self.deposit_desc),
+                str(self.unvault_desc),
+                str(self.cpfp_desc),
                 stkman_noiseprivs[i],
                 coordinator_noisepub.hex(),
                 self.coordinator_port,
@@ -403,9 +413,9 @@ class RevaultNetwork:
             man_config = {"keychain": man, "cosigners": cosigners_info}
             daemon = ManagerRevaultd(
                 datadir,
-                deposit_desc,
-                unvault_desc,
-                cpfp_desc,
+                str(self.deposit_desc),
+                str(self.unvault_desc),
+                str(self.cpfp_desc),
                 man_noiseprivs[i],
                 coordinator_noisepub.hex(),
                 self.coordinator_port,
@@ -440,6 +450,36 @@ class RevaultNetwork:
         """Get the {n}th stakeholder (including the stakeholder-managers first)"""
         stks = self.stkman_wallets + self.stk_wallets
         return stks[n]
+
+    def signed_unvault_psbt(self, deposit, derivation_index):
+        """Get the fully-signed Unvault transaction for this deposit.
+
+        This will raise if we don't have all the signatures.
+        """
+        psbt_str = self.stks()[0].rpc.listpresignedtransactions([deposit])[
+            "presigned_transactions"
+        ][0]["unvault"]
+        psbt = serializations.PSBT()
+        psbt.deserialize(psbt_str)
+
+        finalize_input(self.deposit_desc, psbt.inputs[0], derivation_index)
+        psbt.tx.wit.vtxinwit.append(psbt.inputs[0].final_script_witness)
+        return psbt.tx.serialize_with_witness().hex()
+
+    def signed_cancel_psbt(self, deposit, derivation_index):
+        """Get the fully-signed Cancel transaction for this deposit.
+
+        This will raise if we don't have all the signatures.
+        """
+        psbt_str = self.stks()[0].rpc.listpresignedtransactions([deposit])[
+            "presigned_transactions"
+        ][0]["cancel"]
+        psbt = serializations.PSBT()
+        psbt.deserialize(psbt_str)
+
+        finalize_input(self.unvault_desc, psbt.inputs[0], derivation_index)
+        psbt.tx.wit.vtxinwit.append(psbt.inputs[0].final_script_witness)
+        return psbt.tx.serialize_with_witness().hex()
 
     def get_vault(self, address):
         """Get a vault entry by outpoint or by address"""
@@ -642,10 +682,11 @@ class RevaultNetwork:
         man.wait_for_log(
             f"Succesfully broadcasted Spend tx '{spend_psbt.tx.hash}'",
         )
-        wait_for(
-            lambda: len(self.man(0).rpc.listvaults(["spending"], deposits)["vaults"])
-            == len(deposits)
-        )
+        for w in self.participants():
+            wait_for(
+                lambda: len(w.rpc.listvaults(["spending"], deposits)["vaults"])
+                == len(deposits)
+            )
 
         return deposits, spend_psbt
 
@@ -662,10 +703,11 @@ class RevaultNetwork:
         )
 
         self.bitcoind.generate_block(1, wait_for_mempool=[spend_psbt.tx.hash])
-        wait_for(
-            lambda: len(self.man(0).rpc.listvaults(["spent"], deposits)["vaults"])
-            == len(deposits)
-        )
+        for w in self.participants():
+            wait_for(
+                lambda: len(w.rpc.listvaults(["spent"], deposits)["vaults"])
+                == len(deposits)
+            )
 
         return deposits, spend_psbt.tx.hash
 
@@ -772,7 +814,8 @@ class RevaultNetwork:
             j.result(TIMEOUT)
 
     def cleanup(self):
-        for n in self.daemons:
-            n.cleanup()
+        jobs = [self.executor.submit(w.cleanup) for w in self.daemons]
+        for j in jobs:
+            j.result(TIMEOUT)
         if self.bitcoind_proxy is not None:
             self.bitcoind_proxy.stop()
