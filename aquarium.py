@@ -36,7 +36,7 @@ COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "master")
 COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "master")
 MIRADORD_VERSION = os.getenv("MIRADORD_VERSION", "master")
 REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "master")
-REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "master")
+REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "multi-cancel")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 WITH_ALL_HWS = os.getenv("WITH_ALL_HWS", "0") == "1"
 
@@ -112,7 +112,7 @@ def build_all_binaries(build_cosig, build_wt):
         build_src(
             REVAULT_GUI_SRC_DIR,
             REVAULT_GUI_VERSION,
-            "https://github.com/revault/revault-gui",
+            "https://github.com/edouardparis/revault-gui",
         )
 
         logging.info("Building revault-gui's dummysigner")
