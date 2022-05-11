@@ -66,7 +66,7 @@ class Revaultd(TailableProc):
 
             f.write(f'coordinator_host = "127.0.0.1:{coordinator_port}"\n')
             f.write(f'coordinator_noise_key = "{coordinator_noise_key}"\n')
-            f.write("coordinator_poll_seconds = 5\n")
+            f.write("coordinator_poll_seconds = 1\n")
 
             f.write("[scripts_config]\n")
             f.write(f'deposit_descriptor = "{deposit_desc}"\n')
@@ -77,7 +77,7 @@ class Revaultd(TailableProc):
             f.write('network = "regtest"\n')
             f.write(f"cookie_path = '{bitcoind_cookie_path}'\n")
             f.write(f"addr = '127.0.0.1:{bitcoind_rpc_port}'\n")
-            f.write("poll_interval_secs = 10\n")
+            f.write("poll_interval_secs = 1\n")
 
             if stk_config is not None:
                 f.write("[stakeholder_config]\n")
@@ -160,7 +160,8 @@ class Revaultd(TailableProc):
     def cleanup(self):
         try:
             self.stop()
-        except Exception:
+        except Exception as e:
+            logging.error(f"{self.prefix}: Error when cleaning up: '{e}'")
             self.proc.kill()
 
 

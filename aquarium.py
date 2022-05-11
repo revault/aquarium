@@ -147,12 +147,9 @@ def deploy(
     with_wts = len(policies) > 0
 
     if not POSTGRES_IS_SETUP:
-        logging.error("I need the Postgres environment variable to be set.")
-        print("Example:")
-        print(f'  POSTGRES_USER="revault" POSTGRES_PASS="revault" {sys.argv[0]}')
-        sys.exit(1)
+        logging.info("No Postgre backend given, will use a dummy coordinator")
 
-    if not is_listening(POSTGRES_HOST, 5432):
+    if POSTGRES_IS_SETUP and not is_listening(POSTGRES_HOST, 5432):
         logging.error(f"No Postgre server listening on {POSTGRES_HOST}:5432.")
         print(
             f"A simple way to get started with one given your POSTGRES_PASS and POSTGRES_USER:"

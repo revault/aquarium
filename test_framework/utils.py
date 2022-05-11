@@ -15,17 +15,20 @@ import subprocess
 import threading
 import time
 
+from bip380.descriptors import Descriptor
+from bip380.miniscript import SatisfactionMaterial
 from test_framework import serializations
 from typing import Optional
 
 
+TEST_PROFILING = bool(int(os.getenv("TEST_PROFILING", "0")))
 TIMEOUT = int(os.getenv("TIMEOUT", 60))
 DEBUG_GUI = os.getenv("DEBUG_GUI", "0") == "1"
 EXECUTOR_WORKERS = int(os.getenv("EXECUTOR_WORKERS", 20))
 POSTGRES_USER = os.getenv("POSTGRES_USER", "")
 POSTGRES_PASS = os.getenv("POSTGRES_PASS", "")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_IS_SETUP = POSTGRES_USER and POSTGRES_PASS and POSTGRES_HOST
+POSTGRES_IS_SETUP = POSTGRES_USER != "" and POSTGRES_PASS != ""
 VERBOSE = os.getenv("VERBOSE", "0") == "1"
 LOG_LEVEL = os.getenv("LOG_LEVEL", "debug")
 assert LOG_LEVEL in ["trace", "debug", "info", "warn", "error"]
@@ -62,7 +65,7 @@ BITCOIND_PATH = os.getenv("BITCOIND_PATH", DEFAULT_BITCOIND_PATH)
 WT_PLUGINS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wtplugins")
 
 
-COIN = 10 ** 8
+COIN = 10**8
 
 
 def wait_for(success, timeout=TIMEOUT, debug_fn=None):
@@ -245,9 +248,28 @@ def get_descriptors(stks_xpubs, cosigs_keys, mans_xpubs, mans_thresh, cpfp_xpubs
 
     descs = json.loads(descs_json)
     return (
-        descs["deposit_descriptor"],
-        descs["unvault_descriptor"],
-        descs["cpfp_descriptor"],
+        Descriptor.from_str(descs["deposit_descriptor"]),
+        Descriptor.from_str(descs["unvault_descriptor"]),
+        Descriptor.from_str(descs["cpfp_descriptor"]),
+    )
+
+
+def finalize_input(descriptor, psbtin, derivation_index, max_sequence=2**32):
+    """Produce a valid witness for this PSBT input, given its descriptor.
+
+    The PSBT must have all signatures, it will raise otherwise.
+    """
+    desc = Descriptor.from_str(str(descriptor))
+    desc.derive(derivation_index)
+
+    sat_material = SatisfactionMaterial(
+        signatures=psbtin.partial_sigs, max_sequence=max_sequence
+    )
+    stack = desc.satisfy(sat_material)
+
+    assert stack is not None
+    psbtin.final_script_witness = serializations.CTxInWitness(
+        serializations.CScriptWitness(stack)
     )
 
 
