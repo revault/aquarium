@@ -34,9 +34,9 @@ REVAULT_GUI_SRC_DIR = os.path.join(SRC_DIR, "revault-gui")
 SHELL = os.getenv("SHELL", "bash")
 COORDINATORD_VERSION = os.getenv("COORDINATORD_VERSION", "master")
 COSIGNERD_VERSION = os.getenv("COSIGNERD_VERSION", "master")
-MIRADORD_VERSION = os.getenv("MIRADORD_VERSION", "static_feebumping")
-REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "feebumping_riddance")
-REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "multi-cancel")
+MIRADORD_VERSION = os.getenv("MIRADORD_VERSION", "master")
+REVAULTD_VERSION = os.getenv("REVAULTD_VERSION", "master")
+REVAULT_GUI_VERSION = os.getenv("REVAULT_GUI_VERSION", "master")
 WITH_GUI = os.getenv("WITH_GUI", "1") == "1"
 WITH_ALL_HWS = os.getenv("WITH_ALL_HWS", "0") == "1"
 
@@ -101,11 +101,11 @@ def build_all_binaries(build_cosig, build_wt, build_coordinator=True):
             f"Building miradord at '{MIRADORD_VERSION}' in '{MIRADORD_SRC_DIR}'"
         )
         build_src(
-            MIRADORD_SRC_DIR, MIRADORD_VERSION, "https://github.com/darosior/miradord"
+            MIRADORD_SRC_DIR, MIRADORD_VERSION, "https://github.com/revault/miradord"
         )
 
     logging.info(f"Building revaultd at '{REVAULTD_VERSION}' in '{REVAULTD_SRC_DIR}'")
-    build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION, "https://github.com/darosior/revaultd")
+    build_src(REVAULTD_SRC_DIR, REVAULTD_VERSION, "https://github.com/revault/revaultd")
 
     if WITH_GUI:
         logging.info(
