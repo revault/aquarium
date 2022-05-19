@@ -205,14 +205,14 @@ class DummyCoordinator:
 
             elif method == "set_spend_tx":
                 for outpoint in params["deposit_outpoints"]:
-                    self.spend_txs[outpoint] = params["transaction"]
+                    self.spend_txs[outpoint] = params["spend_tx"]
                 # TODO: remove this useless response from the protocol
                 resp = {"result": {"ack": True}, "id": request["id"]}
                 self.send_msg(client_fd, client_noise, json.dumps(resp))
 
             elif method == "get_spend_tx":
                 spend_tx = self.spend_txs.get(params["deposit_outpoint"])
-                resp = {"result": {"transaction": spend_tx}, "id": request["id"]}
+                resp = {"result": {"spend_tx": spend_tx}, "id": request["id"]}
                 self.send_msg(client_fd, client_noise, json.dumps(resp))
 
             else:
