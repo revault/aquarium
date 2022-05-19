@@ -189,18 +189,16 @@ class DummyCoordinator:
             method, params = request["method"], request["params"]
 
             if method == "sig":
-                # FIXME: the field name is a misimplementation!
                 # TODO: mutex
-                if params["id"] not in self.sigs:
-                    self.sigs[params["id"]] = {}
-                self.sigs[params["id"]][params["pubkey"]] = params["signature"]
+                if params["txid"] not in self.sigs:
+                    self.sigs[params["txid"]] = {}
+                self.sigs[params["txid"]][params["pubkey"]] = params["signature"]
                 # TODO: remove this useless response from the protocol
                 resp = {"result": {"ack": True}, "id": request["id"]}
                 self.send_msg(client_fd, client_noise, json.dumps(resp))
 
             elif method == "get_sigs":
-                # FIXME: the field name is a misimplementation of the protocol!
-                txid = params["id"]
+                txid = params["txid"]
                 sigs = self.sigs.get(txid, {})
                 resp = {"result": {"signatures": sigs}, "id": request["id"]}
                 self.send_msg(client_fd, client_noise, json.dumps(resp))
