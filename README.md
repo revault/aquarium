@@ -172,7 +172,7 @@ but the default is higher).
 
 To launch the GUI for one of the participants:
 ```
-stk0gui >/dev/null &
+stk0gui &
 ```
 (redirecting `stdout` here to avoid getting annoyed by the logs)
 
@@ -186,7 +186,7 @@ participants' GUI would be too much, by default Aquarium configures a single dum
 the keys (and you can choose which keys to sign for at runtime). Start the dummy signer with the
 following alias:
 ```
-hw >/dev/null &
+hw &
 ```
 
 We'll directly sign with all the stakeholders' keys. For "The Real Revault Experience" (tm) or
@@ -216,8 +216,8 @@ here depends of course of hypothetical spending policy we could enforce manually
 Now we can start 2 managers (remember, there are 3 managers but the threshold for spending is only
 of 2).
 ```
-$ man0gui >/dev/null &
-$ stkman0gui >/dev/null &
+$ man0gui &
+$ stkman0gui &
 $ bcli getnewaddress
 bcrt1q2zn3znj8v5s2tp9v9pt9jvwxder8sv2ve9yc09
 ```

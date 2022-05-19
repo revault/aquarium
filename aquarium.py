@@ -302,22 +302,22 @@ def deploy(
                 f.write(f'alias stk{i}d="{test_framework.revaultd.REVAULTD_PATH} --conf {stk.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
-                        f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file}'\n"
+                        f"alias stk{i}gui='{revault_gui} --conf {stk.gui_conf_file} > /dev/null'\n"
                     )
                     if WITH_ALL_HWS:
                         f.write(
-                            f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.hd.get_xpriv()}'\n"
+                            f"alias stk{i}hw='{dummysigner} {stk.stk_keychain.hd.get_xpriv()} > /dev/null'\n"
                         )
             for i, man in enumerate(rn.man_wallets):
                 f.write(f'alias man{i}cli="{revault_cli} --conf {man.conf_file}"\n')
                 f.write(f'alias man{i}d="{test_framework.revaultd.REVAULTD_PATH} --conf {man.conf_file}"\n')
                 if WITH_GUI:
                     f.write(
-                        f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file}'\n"
+                        f"alias man{i}gui='{revault_gui} --conf {man.gui_conf_file} > /dev/null'\n"
                     )
                     if WITH_ALL_HWS:
                         f.write(
-                            f"alias man{i}hw='{dummysigner} {man.man_keychain.hd.get_xpriv()}'\n"
+                            f"alias man{i}hw='{dummysigner} {man.man_keychain.hd.get_xpriv()} > /dev/null'\n"
                         )
             for i, stkman in enumerate(rn.stkman_wallets):
                 f.write(
@@ -328,18 +328,18 @@ def deploy(
                 )
                 if WITH_GUI:
                     f.write(
-                        f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file}'\n"
+                        f"alias stkman{i}gui='{revault_gui} --conf {stkman.gui_conf_file} > /dev/null'\n"
                     )
                     if WITH_ALL_HWS:
                         f.write(
-                            f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.hd.get_xpriv()}'\n"
+                            f"alias stkman{i}hwstk='{dummysigner} {stkman.stk_keychain.hd.get_xpriv()} > /dev/null'\n"
                         )
                         f.write(
-                            f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.hd.get_xpriv()}'\n"
+                            f"alias stkman{i}hwman='{dummysigner} {stkman.man_keychain.hd.get_xpriv()} > /dev/null'\n"
                         )
             # hw for all the keys.
             if WITH_GUI:
-                f.write(f"alias hw='{dummysigner} --conf {dummysigner_conf_file}'\n")
+                f.write(f"alias hw='{dummysigner} --conf {dummysigner_conf_file} > /dev/null'\n")
 
         with open(aliases_file, "r") as f:
             available_aliases = "".join(f.readlines()[1:])
